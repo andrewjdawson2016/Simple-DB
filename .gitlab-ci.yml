@@ -1,0 +1,17 @@
+image: maven:3-jdk-8
+
+before_script:
+  - export ANT_VERSION=1.9.6
+  - wget -q http://www.us.apache.org/dist/ant/binaries/apache-ant-${ANT_VERSION}-bin.tar.gz
+  - tar -xzf apache-ant-${ANT_VERSION}-bin.tar.gz
+  - rm apache-ant-${ANT_VERSION}-bin.tar.gz
+  - export ANT_HOME=${PWD}/apache-ant-${ANT_VERSION}
+  - export PATH=${PATH}:${ANT_HOME}/bin
+
+build:
+  script: ant compile dist
+
+test:
+  script:
+    - ant test
+    - ant systemtest
