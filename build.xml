@@ -15,7 +15,7 @@
     <property name="compile.debug" value="true"/>
     <property name="test.reports" location="testreport"/>
 
-    <property name="sourceversion" value="1.6"/>
+    <property name="sourceversion" value="1.8"/>
 
     <path id="classpath.base">
         <pathelement location="${build.src}"/>
@@ -287,11 +287,11 @@
             </fileset>
             <report todir="${test.reports}" />
         </junitreport>
-        
+
         <!-- Fail here if the junit tests failed. -->
         <fail if="junit.failed" message="Some JUnit tests failed"/>
     </target>
-    
+
     <target name="handin" depends="clean"
         description="Create a tarball of your code to hand in">
         <tar destfile="lab-handin.tar.bz2" compression="bzip2"
