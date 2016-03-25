@@ -23,15 +23,132 @@ We **strongly recommend** that you start as early as possible on this lab. It re
 
 These instructions are written for a Unix-based platform (e.g., Linux, MacOS, etc.) Because the code is written in Java, it should work under Windows as well, though the directions in this document may not apply.
 
-We have included [Section 1.2](#eclipse) on using the project with Eclipse.
+We have included Section 1.5 on using the project with Eclipse, and Section 1.6 on using the IntelliJ IDEA. But first, we need to move the skeleton code onto your local file system.
 
-Download the code from [http://www.cs.washington.edu/education/courses/cse444/15sp/labs/lab1/CSE444-lab1.tar.gz](http://www.cs.washington.edu/education/courses/cse444/15sp/labs/lab1/CSE444-lab1.tar.gz) and untar it. For example:
+### 1.1\. Working with Git
+
+We will be using `git`, a source code control tool, for the SimpleDB labs. This will allow you to download the code for the labs, and also submit the labs in a standardized format that will streamline grading.
+
+You will also be able to use `git` to commit your progress on the labs as you go.
+
+Course git repositories will be hosted as a repository in [GitLab](https://gitlab.cs.washington.edu). Your code will be in a private repository that is visible only to you and the course staff.
+
+#### 1.1.1\. Getting started with Git
+
+There are numerous guides on using `git` that are available. They range from being interactive to just text-based. Find one that works and experiment -- making mistakes and fixing them is a great way to learn. Here is a [link to resources](https://help.github.com/articles/what-are-other-good-resources-for-learning-git-and-github) that GitHub suggests starting with. If you have no experience with `git`, you may find this [web-based tutorial helpful](https://try.github.io/levels/1/challenges/1).
+
+Git may already be installed in your environment; if it's not, you'll need to install it first. For `bash`/Linux environments, git should be a simple `apt-get` / `yum` / etc. install. More detailed instructions may be [found here](http://git-scm.com/book/en/Getting-Started-Installing-Git).
+
+If you are using Eclipse or IntelliJ, many versions come with git already configured. The instructions will be slightly different than the command line instructions listed but will work for any OS. For Eclipse, detailed instructions can be found at [EGit User Guide](http://wiki.eclipse.org/EGit/User_Guide) or [EGit Tutorial](http://eclipsesource.com/blogs/tutorials/egit-tutorial).
+
+#### 1.1.2\. Cloning your SimpleDB repository
+
+We've created a GitLab repository that you will use to implement SimpleDB. This repository is hosted on the [CSE GitLab](https://gitlab.cs.washington.edu) site, and you can view it by visiting the GitLab website at `https://gitlab.cs.washington.edu/cse444-16sp/simple-db-[your GitLab username]`. You'll be using this **same repository** for each of the labs this quarter, so if you don't see this repository or are unable to access it, let us know immediately!
+
+The first thing you'll need to do is set up a SSH key to allow communication with GitLab:
+
+1.  If you don't already have one, generate a new SSH key. See [these instructions](http://doc.gitlab.com/ce/ssh/README.html) for details on how to do this.
+2.  Visit the [GitLab SSH key management page](https://gitlab.cs.washington.edu/profile/keys). You'll need to log in using your CSE account.
+3.  Click "Add SSH Key" and paste in your **public** key into the text area.
+
+While you're logged into the GitLab website, browse around to see which projects you have access to. You should have access to `simple-db-[your username]`. Spend a few minutes getting familiar with the directory layout and file structure.
+
+We next want to move the code from the GitLab repository onto your local file system. To do this, you'll need to clone the lab repository by issuing the following commands on the command line:
 
 ```sh
-$ wget http://www.cs.washington.edu/education/courses/cse444/15sp/labs/lab1/CSE444-lab1.tar.gz
-$ tar xvzf CSE444-lab1.tar.gz
-$ cd CSE444-lab1
+$ git clone https://gitlab.cs.washington.edu/cse444-16sp/simple-db-MY_GITLAB_USERNAME
+$ cd simple-db-MY_GITLAB_USERNAME
 ```
+
+This will make a complete replica of the lab repository locally. If you get an error that looks like:
+
+```sh
+Cloning into 'simple-db-myusername'...
+Permission denied (publickey).
+fatal: Could not read from remote repository.
+```
+
+... then there is a problem with your GitLab configuration. Check to make sure that your GitLab username matches the repository suffix, that your private key is in your SSH directory (`~/.ssh`) and has the correct permissions, and that you can view the repository through the website.
+
+Cloning will make a complete replica of the lab repository locally. Any time you `commit` and `push` your local changes, they will appear in the GitLab repository.  Since we'll be grading the copy in the GitLab repository, it's important that you remember to push all of your changes!
+
+#### 1.1.3\. Adding an upstream remote
+
+Next, we'll record an `upstream` remote in the repository you've just cloned. You will use this repository to pull an bug fixes that we release, along with new code needed for subsequent labs. Add this repository as follows:
+
+```sh
+$ # Note that this repository does not have your username as a suffix!
+$ git remote add upstream git@gitlab.cs.washington.edu:cse444-16sp/simple-db.git
+```
+
+For reference, your final remote configuration should read like the following when it's setup correctly:
+
+```sh
+$ git remote -v
+  origin  git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git (fetch)
+  origin  git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git (push)
+  upstream    git@gitlab.cs.washington.edu:cse444-16sp/simple-db.git (fetch)
+  upstream    git@gitlab.cs.washington.edu:cse444-16sp/simple-db.git (push)
+```
+
+In this configuration, the `origin` (default) remote links to **your** repository where you'll be pushing your individual submission. The `upstream` remote points to **our** repository where you'll be pulling subsequent labs and bug fixes (more on this below).
+
+Let's test out the origin remote by doing a push of your master branch to GitLab. Do this by issuing the following commands:
+
+```sh
+$ touch empty_file
+$ git commit empty_file -m 'Testing git'
+$ git push
+```
+
+You should see something like the following:
+
+```sh
+Counting objects: 4, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (2/2), done.
+Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
+Total 3 (delta 1), reused 0 (delta 0)
+To git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git
+   cb5be61..9bbce8d  master -> master
+```
+
+We pushed a blank file to the remote, which isn't very interesting. Let's clean up after ourselves:
+
+```sh
+$ # Tell git we want to remove this file from our repository
+$ git rm empty_file
+$ # Now commit all pending changes (-a) with the specified message (-m)
+$ git commit -a -m 'Removed test file'
+$ # Now, push this change to GitLab
+$ git push
+```
+
+If you don't know Git that well, this probably seemed very arcane. Just keep using Git and you'll understand more and more. We'll provide explicit instructions below on how to use these commands to actually indicate your final lab solution.
+
+#### 1.1.4\. Pulling from the upstream remote
+
+If we release additional details or bug fixes for this lab, we'll push them to the repository that you just added as an `upstream` remote. You'll need to `pull` and `merge` them into your own repository. (You'll also do this for subsequent labs!) You can do both of these things with the following command:
+
+```sh
+$ git pull upstream master
+remote: Counting objects: 3, done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 3 (delta 2), reused 0 (delta 0)
+Unpacking objects: 100% (3/3), done.
+From gitlab.cs.washington.edu:cse444-16sp/simple-db
+ * branch            master     -> FETCH_HEAD
+   7f81148..b0c4a3e  master     -> upstream/master
+Merge made by the 'recursive' strategy.
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+Here we pulled and merged changes to the `README.md` file. Git may open a text editor to allow you to specify a merge commit message; you may leave this as the default. Note that these changes are merged locally, but we will eventually want to push them to the GitLab repository (`git push`).
+
+Note that it's possible that there aren't any pending changes in the upstream repository for you to pull.  If so, `git` will tell you that everything is up to date.
+
+### 1.2\. Using Ant and running unit tests
 
 SimpleDB uses the [Ant build tool](http://ant.apache.org/) to compile the code and run tests. Ant is similar to [make](http://www.gnu.org/software/make/manual/), but the build file is written in XML and is somewhat better suited to Java code. Most modern Linux distributions include Ant.
 
@@ -40,7 +157,7 @@ To help you during development, we have provided a set of unit tests in addition
 To run the unit tests use the `test` build target:
 
 ```sh
-$ cd CSE444-lab1
+$ cd simple-db-MY_USERNAME
 $ # run all unit tests
 $ ant test
 $ # run a specific unit test
@@ -65,19 +182,20 @@ The output above indicates that two errors occurred during compilation; this is 
 
 For more details about how to use Ant, see the [manual](http://ant.apache.org/manual/). The [Running Ant](http://ant.apache.org/manual/running.html) section provides details about using the `ant` command. However, the quick reference table below should be sufficient for working on the labs.
 
-| Command | Description |
-|---|---|
-| `ant`  | Build the default target (for simpledb, this is dist). |
-| `ant -projecthelp`  | List all the targets in `build.xml` with descriptions.  |
-| `ant dist` |  Compile the code in src and package it in `dist/simpledb.jar`. |
-| `ant test` | Compile and run all the unit tests. |
-| `ant runtest -Dtest=testname` | Run the unit test named `testname`. |
-| `ant systemtest` | Compile and run all the system tests. |
-| `ant runsystest -Dtest=testname` | Compile and run the system test named `testname`. |
-| `ant handin` | Generate tarball for submission. |
-| `ant eclipse` | Generate eclipse project files You can import it by the steps described [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm). |
 
-### 1.1\. Running end-to-end tests
+| Command                          | Description                                                    |
+|----------------------------------|----------------------------------------------------------------|
+| `ant`                            | Build the default target (for simpledb, this is dist).         |
+| `ant -projecthelp`               | List all the targets in `build.xml` with descriptions.         |
+| `ant dist`                       | Compile the code in src and package it in `dist/simpledb.jar`. |
+| `ant test`                       | Compile and run all the unit tests.                            |
+| `ant runtest -Dtest=testname`    | Run the unit test named `testname`.                            |
+| `ant systemtest`                 | Compile and run all the system tests.                          |
+| `ant runsystest -Dtest=testname` | Compile and run the system test named `testname`.              |
+| `ant handin`                     | Generate tarball for submission.                               |
+| `ant eclipse`                    | Generate eclipse project files You can import it by the steps described [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm). |
+
+### 1.3\. Running end-to-end tests
 
 We have also provided a set of end-to-end tests that will eventually be used for grading. These tests are structured as JUnit tests that live in the `test/simpledb/systemtest` directory. To run all the system tests, use the `systemtest` build target:
 
@@ -105,7 +223,7 @@ $ ant systemtest
 
 This indicates that this test failed, showing the stack trace where the error was detected. To debug, start by **reading the source code where the error occurred**. **Look at both your source code and the source code of the unit test.** When the tests pass, you will see something like the following:
 
-```
+```sh
 $ ant systemtest
 
 # ... build output ...
@@ -122,11 +240,11 @@ BUILD SUCCESSFUL
 Total time: 52 seconds
 ```
 
-#### 1.1.1 Creating dummy tables
+### 1.4\. Creating tables for your own tests
 
 It is likely you'll want to create your own tests and your own data tables to test your own implementation of SimpleDB. You can create any `.txt` file and convert it to a `.dat` file in SimpleDB's `HeapFile` format using the command:
 
-```
+```sh
 $ java -jar dist/simpledb.jar convert file.txt N
 ```
 
@@ -139,39 +257,46 @@ int1,int2,...,intN
 int1,int2,...,intN
 ```
 
-...where each `intN` is a non-negative integer.
+...where each intN is a non-negative integer.
 
 To view the contents of a table, use the `print` command:
 
-```
+```sh
 $ java -jar dist/simpledb.jar print file.dat N
 ```
 
 where `file.dat` is the name of a table created with the `convert` command, and `N` is the number of columns in the file.
 
-### 1.2\. Working in Eclipse
+### 1.5\. Continuous integration
+
+The GitLab servers are equipped with a continuous integration (CI) build server that executes the unit tests against any commits that you push. You can view the status of the CI build on the GitLab website under your individual repository. Note that the CI build environment **precisely matches** the environment that we will use to grade your assignments. If your unit tests are passing locally but you are experiencing build or testing failures on the CI server, you will need to investigate and modify your implementation until the CI build passes.
+
+### 1.6\. Working in Eclipse
 
 [Eclipse](http://www.eclipse.org) is a graphical software development environment that you might be more comfortable with working in. The instructions we provide were generated by using Eclipse 3.5.2 (Galileo) for Java Developers (not the enterprise edition) with Java 1.6.0_20 on Ubuntu 10.04 LTS. They should also work under Windows or on MacOS.
 
 **Setting the Lab Up in Eclipse**
 
-*   Once Eclipse is installed, start it, and note that the first screen asks you to select a location for your workspace (we will refer to this directory as `$W`).
-*   On the file system, copy `CSE444-lab1.tar.gz` to `$W/CSE444-lab1.tar.gz`. Un-GZip and un-tar it, which will create a directory `$W/CSE444-lab1` (to do this, you can type `tar -pzxvf CSE444-lab1.tar.gz`).
-*   Under terminal, `cd $W/CSE444-lab1`.
-*   Run `ant eclipse`. The _eclipse_ ant target will generate the eclipse meta files `.project` and `.classpath` under `$W/CSE444-lab1`.
+*   Once Eclipse is installed, start it, and note that the first screen asks you to select a location for your workspace (we will refer to this directory as $W).
+*   Under terminal, cd $W/simple-db-MY_USERNAME.
+*   Run `ant eclipse`. The _eclipse_ ant target will generate the eclipse meta files .project and .classpath under $W/simple-db-MY_USERNAME.
 *   Import the generated project to Eclipse using the steps [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm)
-
-**Note:** that this class assumes that you are using the official Sun release of Java. This is the default on MacOS X, and for most Windows Eclipse installs; but many Linux distributions default to alternate Java runtimes (like OpenJDK). There should be no problems using these alternatives. But if you meet any problems , [these instructions](http://ubuntuforums.org/showthread.php?t=201378) for Ubuntu Linux may be of help in switching Java versions.
 
 **Running Individual Unit and System Tests**
 
-To run a unit test or system test (both are JUnit tests, and can be initialized the same way), go to the Package Explorer tab on the left side of your screen. Under the "CSE444-lab1" project, open the "test" directory. Unit tests are found in the "simpledb" package, and system tests are found in the "simpledb.systemtests" package. To run one of these tests, select the test (they are all called *Test.java - don't select TestUtil.java or SystemTestUtil.java), right click on it, select "Run As," and select "JUnit Test." This will bring up a JUnit tab, which will tell you the status of the individual tests within the JUnit test suite, and will show you exceptions and other errors that will help you debug problems.
+To run a unit test or system test (both are JUnit tests, and can be initialized the same way), go to the Package Explorer tab on the left side of your screen. Under the "simple-db-MY_USERNAME" project, open the "test" directory. Unit tests are found in the "simpledb" package, and system tests are found in the "simpledb.systemtests" package. To run one of these tests, select the test (they are all called *Test.java - don't select TestUtil.java or SystemTestUtil.java), right click on it, select "Run As," and select "JUnit Test." This will bring up a JUnit tab, which will tell you the status of the individual tests within the JUnit test suite, and will show you exceptions and other errors that will help you debug problems.
 
 **Running Ant Build Targets**
 
 If you want to run commands such as "ant test" or "ant systemtest," right click on build.xml in the Package Explorer. Select "Run As," and then "Ant Build..." (note: select the option with the ellipsis (...), otherwise you won't be presented with a set of build targets to run). Then, in the "Targets" tab of the next screen, check off the targets you want to run (probably "dist" and one of "test" or "systemtest"). This should run the build targets and show you the results in Eclipse's console window.
 
-### 1.3\. Implementation hints
+### 1.7\. Working in IntelliJ
+
+Reached the point where you need to [vent about Eclipse in anger](http://www.ihateeclipse.com/)? The IntelliJ IDE from JetBrains is an alternative development environment that may be used for the labs. If you don't already have a copy, [download](https://www.jetbrains.com/idea) and [install](https://www.jetbrains.com/help/idea/2016.1/installing-and-launching.html?origin=old_help) the IDE. If you want to try out the proprietary edition, JetBrains offers a [student license](https://www.jetbrains.com/student/).
+
+Once IntelliJ is installed and launched, select "Import Project" from the initial dialog. Point IntelliJ to the directory of your cloned repository, and accept the default settings. Once the project loads, you may right-click on `build.xml` and select "Use as Ant build" to launch the Ant tests. Alternatively, you may use the IntelliJ interactive testing functionality. Use `ctrl-F9` to launch all tests; see the [IntelliJ documentation](https://www.jetbrains.com/help/idea/2016.1/performing-tests.html) for more details.
+
+### 1.8\. Implementation hints
 
 Before beginning to write code, we **strongly encourage** you to read through this entire document to get a feel for the high-level design of SimpleDB.
 
@@ -207,7 +332,7 @@ We suggest exercises along this document to guide your implementation, but you m
 
     Section 2 below walks you through these implementation steps and the unit tests corresponding to each one in more detail.
 
-### 1.4\. Transactions, locking, and recovery
+### 1.8\. Transactions, locking, and recovery
 
 As you look through the interfaces we have provided you, you will see a number of references to locking, transactions, and recovery. You do not need to support these features in this lab, but you should keep these parameters in the interfaces of your code because you will be implementing transactions and locking in a future lab. The test code we have provided you with generates a fake transaction ID that is passed into the operators of the query it runs; you should pass this transaction ID into other operators and the buffer pool.
 
@@ -242,9 +367,7 @@ The Database class provides access to a collection of static objects that are th
 
 Tuples in SimpleDB are quite basic. They consist of a collection of `Field` objects, one per field in the `Tuple`. `Field` is an interface that different data types (e.g., integer, string) implement. `Tuple` objects are created by the underlying access methods (e.g., heap files, or B-trees), as described in the next section. Tuples also have a type (or schema), called a _tuple descriptor_, represented by a `TupleDesc` object. This object consists of a collection of `Type` objects, one per field in the tuple, each of which describes the type of the corresponding field.
 
-#### Exercise 1.
-
-Implement the skeleton methods in:
+**Exercise 1.** Implement the skeleton methods in:
 
 *   `src/java/simpledb/TupleDesc.java`
 *   `src/java/simpledb/Tuple.java`
@@ -259,9 +382,7 @@ The catalog (class `Catalog` in SimpleDB) consists of a list of the tables and s
 
 The global catalog is a single instance of `Catalog` that is allocated for the entire SimpleDB process. The global catalog can be retrieved via the method `Database.getCatalog()`, and the same goes for the global buffer pool (using `Database.getBufferPool()`).
 
-#### **Exercise 2.**
-
-Implement the skeleton methods in:
+**Exercise 2.** Implement the skeleton methods in:
 
 *   `src/java/simpledb/Catalog.java`
 
@@ -273,11 +394,9 @@ The buffer pool (class `BufferPool` in SimpleDB) is responsible for caching page
 
 The `Database` class provides a static method, `Database.getBufferPool()`, that returns a reference to the single BufferPool instance for the entire SimpleDB process.
 
-#### **Exercise 3.**
+**Exercise 3.** Implement the `getPage()` method in:
 
-Implement the `getPage()` method in:
-
-*   src/java/simpledb/BufferPool.java
+*   `src/java/simpledb/BufferPool.java`
 
 We have not provided unit tests for BufferPool. The functionality you implemented will be tested in the implementation of HeapFile below. You should use the `DbFile.readPage` method to access pages of a DbFile.
 
@@ -301,9 +420,7 @@ The ceiling operation rounds up to the nearest integer number of bytes (we never
 
 The low (least significant) bits of each byte represents the status of the slots that are earlier in the file. Hence, the lowest bit of the first byte represents whether or not the first slot in the page is in use. Also, note that the high-order bits of the last byte may not correspond to a slot that is actually in the file, since the number of slots may not be a multiple of 8\. Also note that all Java virtual machines are [big-endian](http://en.wikipedia.org/wiki/Endianness).
 
-#### **Exercise 4.**
-
-Implement the skeleton methods in:
+**Exercise 4.** Implement the skeleton methods in:
 
 *   `src/java/simpledb/HeapPageId.java`
 *   `src/java/simpledb/RecordId.java`
@@ -317,9 +434,7 @@ At this point, your code should pass the unit tests in HeapPageIdTest, RecordIdT
 
 After you have implemented `HeapPage`, you will write methods for `HeapFile` in this lab to calculate the number of pages in a file and to read a page from the file. You will then be able to fetch tuples from a file stored on disk.
 
-#### **Exercise 5.**
-
-Implement the skeleton methods in:
+**Exercise 5.** Implement the skeleton methods in:
 
 *   `src/java/simpledb/HeapFile.java`
 
@@ -328,6 +443,7 @@ To read a page from disk, you will first need to calculate the correct offset in
 You will also need to implement the `HeapFile.iterator()` method, which should iterate through through the tuples of each page in the HeapFile. The iterator must use the `BufferPool.getPage()` method to access pages in the `HeapFile`. This method loads the page into the buffer pool and will eventually be used (in a later lab) to implement locking-based concurrency control and recovery. Do not load the entire table into memory on the open() call -- this will cause an out of memory error for very large tables.
 
 At this point, your code should pass the unit tests in HeapFileReadTest.
+
 
 ### 2.6\. Operators
 
@@ -339,9 +455,7 @@ At the top of the plan, the program interacting with SimpleDB simply calls `getN
 
 For this lab, you will only need to implement one SimpleDB operator.
 
-#### **Exercise 6.**
-
-Implement the skeleton methods in:
+**Exercise 6.** Implement the skeleton methods in:
 
 *   `src/java/simpledb/SeqScan.java`
 
@@ -351,7 +465,7 @@ At this point, you should be able to complete the ScanTest system test. Good wor
 
 You will fill in other operators in subsequent labs.
 
-### 2.7\. A simple query
+### 2.7. A simple query
 
 The purpose of this section is to illustrate how these various components are connected together to process a simple query. Suppose you have a data file, "some_data_file.txt", with the following contents:
 
@@ -364,7 +478,7 @@ The purpose of this section is to illustrate how these various components are co
 You can convert this into a binary file that SimpleDB can query as follows:
 
 ```sh
-java -jar dist/simpledb.jar convert some_data_file.txt 3
+$ java -jar dist/simpledb.jar convert some_data_file.txt 3
 ```
 
 Here, the argument "3" tells conver that the input has 3 columns.
@@ -415,11 +529,11 @@ The table we create has three integer fields. To express this, we create a `Tupl
 
 Once we have finished initializing the database system, we create a query plan. Our plan consists only of the `SeqScan` operator that scans the tuples from disk. In general, these operators are instantiated with references to the appropriate table (in the case of `SeqScan`) or child operator (in the case of e.g. Filter). The test program then repeatedly calls `hasNext` and `next` on the `SeqScan` operator. As tuples are output from the `SeqScan`, they are printed out on the command line.
 
-We **strongly recommend** you try this out as a fun end-to-end test that will help you get experience writing your own test programs for simpledb. You should create the file "test.java" in the `src/java/simpledb` directory with the code above, and place the `some_data_file.dat` file in the top level directory. Then run:
+We **strongly recommend** you try this out as a fun end-to-end test that will help you get experience writing your own test programs for simpledb. You should create the file `test.java` in the `src/java/simpledb` directory with the code above, and place the `some_data_file.dat` file in the top level directory. Then run:
 
 ```sh
-ant
-java -classpath dist/simpledb.jar simpledb.test
+$ ant
+$ java -classpath dist/simpledb.jar simpledb.test
 ```
 
 Note that `ant` compiles `test.java` and generates a new jarfile that contains it.
@@ -439,7 +553,54 @@ All CSE 444 labs are to be completed **INDIVIDUALLY**! However, you may discuss 
 
 ### 3.2\. Submitting your assignment
 
-To submit your code, please create a `CSE444-lab1.tar.gz` OR `CSE444-lab1.tar.bz2` tarball (such that, untarred, it creates a `CSE444-lab1/src/java/simpledb` directory with your code) and submit it through the [dropbox](https://catalyst.uw.edu/collectit/dropbox/mbalazin/35074). You can use the `ant handin` target to generate the tarball. You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline (before 11:00 PM on the due date). Place the write-up in a file called `answers.txt` or `answers.pdf` in the top level of your `CSE44-lab1` directory.
+You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline (before 11:59 PM on the due date). Place the write-up in a file called `answers.txt` or `answers.pdf` in the top level of your repository.
+
+**Important**: In order for your write-up to be added to the git repo, you need to explicitly add it:
+
+```sh
+$ git add answers.txt
+```
+
+You also need to explicitly add any other files you create, such as new `*.java` files.
+
+The criteria for your lab being submitted on time is that your code must be tagged and pushed by the due date and time. This means that if one of the TAs or the instructor were to open up GitLab, they would be able to see your solutions on the GitLab web page.
+
+**Just because your code has been committed on your local machine does not mean that it has been submitted -- it needs to be on GitLab!**
+
+There is a bash script `turnInLab1.sh` in the root level directory of your repository that commits your changes, deletes any prior tag for the current lab, tags the current commit, and pushes the branch and tag to GitLab. If you are using Linux or Mac OSX, you should be able to run the following:
+
+```sh
+$ ./turnInLab1.sh
+```
+
+You should see something like the following output:
+
+```sh
+$ ./turnInLab1.sh
+[master b155ba0] Lab 1
+ 1 file changed, 1 insertion(+)
+Deleted tag 'lab1' (was b26abd0)
+To git@gitlab.com:cse444-16sp/hw-answers-pirateninja.git
+ - [deleted]         lab1
+Counting objects: 11, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (6/6), 448 bytes | 0 bytes/s, done.
+Total 6 (delta 3), reused 0 (delta 0)
+To git@gitlab.com:cse444-16sp/hw-answers-pirateninja.git
+   ae31bce..b155ba0  master -> master
+Counting objects: 1, done.
+Writing objects: 100% (1/1), 152 bytes | 0 bytes/s, done.
+Total 1 (delta 0), reused 0 (delta 0)
+To git@gitlab.com:cse444-16sp/hw-answers-pirateninja.git
+ * [new tag]         lab1 -> lab1
+```
+
+#### Final Word of Caution!
+
+Git is a distributed version control system. This means everything operates offline until you run `git pull` or `git push`. This is a great feature.
+
+The bad thing is that you may **forget to `git push` your changes**. This is why we strongly, strongly suggest that you **check GitLab to be sure that what you want us to see matches up with what you expect**.
 
 ### 3.3\. Submitting a bug
 
@@ -457,15 +618,14 @@ If you are the first person to report a particular bug in the code, we will give
 
 75% of your grade will be based on whether or not your code passes the system test suite we will run over it. These tests will be a superset of the tests we have provided. Before handing in your code, you should make sure it produces no errors (passes all of the tests) from both `ant test` and `ant systemtest`.
 
-**Important:** before testing, we will replace your `build.xml` and the entire contents of the `test` directory with our version of these files. This means you cannot change the format of `.dat` files! You should also be careful changing our APIs. You should test that your code compiles the unmodified tests. In other words, we will untar your tarball, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
+**Important:** before testing, we will replace your `build.xml` and the entire contents of the `test` directory with our version of these files. This means you cannot change the format of `.dat` files! You should also be careful changing our APIs.  You should also verify that your tests are succeeding on the CI server by checking the GitLab website. You should test that your code compiles the unmodified tests. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
 
 ```sh
-$ tar xvzf CSE444-lab1.tar.gz
-$ cd ./CSE444-lab1
-[replace build.xml and test]
+$ # [replace build.xml and test]
+$ git checkout -- build.xml test\
 $ ant test
 $ ant systemtest
-[additional tests]
+$ # [additional tests]
 ```
 
 If any of these commands fail, we'll be unhappy, and, therefore, so will your grade.
