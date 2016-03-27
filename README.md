@@ -1,15 +1,19 @@
 # CSE444 Lab 1: SimpleDB
 
+**Acknowledgments:** The SimpleDB lab series was originally developed by Prof. Sam Madden from MIT. In 444, we are working together with the MIT team on extending and enhancing this lab series.
+
+
 **DEADLINES**
 
-**Part 1 due: Friday, April 3 11:00PM
-Due: Friday, April 10 11:00 PM**
+**Part 1 due: Friday, April 1 11:00PM**
+
+**Due: Friday, April 8 11:00 PM**
 
 **IMPORTANT**: Part 1 should take about 1 hour (if all goes well) and it's mostly just there to make sure you get set up with the lab early. Part 2 requires a significant amount of time... really significant! It requires reading the code that we provide, figuring out how everything should work together, and then writing quite a bit of code yourself.
 
 **Version History:**
 
-*   March 31st: First revision.
+*   March 28th: First revision.
 
 In the lab assignments in CSE444 you will write a basic database management system called SimpleDB. For this lab, you will focus on implementing the core modules required to access stored data on disk; in future labs, you will add support for various query processing operators, as well as transactions, locking, and concurrent queries.
 
@@ -29,7 +33,9 @@ We have included Section 1.5 on using the project with Eclipse, and Section 1.6 
 
 We will be using `git`, a source code control tool, for the SimpleDB labs. This will allow you to download the code for the labs, and also submit the labs in a standardized format that will streamline grading.
 
-You will also be able to use `git` to commit your progress on the labs as you go.
+You will also be able to use `git` to commit your progress on the labs
+as you go. This is **important**: Use `git` to back up your work. Back
+up regulary by both committing and pushing your code as we describe below.
 
 Course git repositories will be hosted as a repository in [GitLab](https://gitlab.cs.washington.edu). Your code will be in a private repository that is visible only to you and the course staff.
 
@@ -56,7 +62,7 @@ While you're logged into the GitLab website, browse around to see which projects
 We next want to move the code from the GitLab repository onto your local file system. To do this, you'll need to clone the lab repository by issuing the following commands on the command line:
 
 ```sh
-$ git clone https://gitlab.cs.washington.edu/cse444-16sp/simple-db-MY_GITLAB_USERNAME
+$ git clone https://gitlab.cs.washington.edu/cse444-16sp/simple-db-MY_GITLAB_USERNAME.git
 $ cd simple-db-MY_GITLAB_USERNAME
 ```
 
@@ -74,7 +80,17 @@ Cloning will make a complete replica of the lab repository locally. Any time you
 
 #### 1.1.3\. Adding an upstream remote
 
-Next, we'll record an `upstream` remote in the repository you've just cloned. You will use this repository to pull an bug fixes that we release, along with new code needed for subsequent labs. Add this repository as follows:
+The repository you just cloned is a replica of your own private repository on GitLab.  The copy on your file system is a local copy, and the copy on GitLab is referred to as the `origin` remote copy.  You can view a list of these remote links as follows:
+
+```sh
+$ git remote -v
+```
+
+There is one more level of indirection to consider.
+When we created your `simple-db-yourusername` repository, we forked a copy of it from another repository `simple-db`.  In `git` parlance, this "original repository" referred to as an `upstream` repository.
+When we release bug fixes and subsequent labs, we will put our changes into the upstream repository, and you will need to be able to pull those changes into your own.  See [the documentation](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes) for more details on working with remotes -- they can be confusing!
+
+In order to be able to pull the changes from the upstream repository, we'll need to record a link to the `upstream` remote in your own local repository:
 
 ```sh
 $ # Note that this repository does not have your username as a suffix!
@@ -97,11 +113,14 @@ Let's test out the origin remote by doing a push of your master branch to GitLab
 
 ```sh
 $ touch empty_file
+$ git add empty_file
 $ git commit empty_file -m 'Testing git'
-$ git push
+$ git push # ... to origin by default
 ```
 
-You should see something like the following:
+The `git push` tells git to push all of your **committed** changes to a remote.  If none is specified, `origin` is assumed by default (you can be explicit about this by executing `git push origin`).  Since the `upstream` remote is read-only, you'll only be able to `pull` from it -- `git push upstream` will fail with a permission error.
+
+After executing these commands, you should see something like the following:
 
 ```sh
 Counting objects: 4, done.
@@ -113,7 +132,7 @@ To git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git
    cb5be61..9bbce8d  master -> master
 ```
 
-We pushed a blank file to the remote, which isn't very interesting. Let's clean up after ourselves:
+We pushed a blank file to our origin remote, which isn't very interesting. Let's clean up after ourselves:
 
 ```sh
 $ # Tell git we want to remove this file from our repository
@@ -205,18 +224,18 @@ $ ant systemtest
 # ... build output ...
 
     [junit] Testcase: testSmall took 0.017 sec
-    [junit] 	Caused an ERROR
+    [junit]     Caused an ERROR
     [junit] expected to find the following tuples:
-    [junit] 	19128
+    [junit]     19128
     [junit]
     [junit] java.lang.AssertionError: expected to find the following tuples:
-    [junit] 	19128
+    [junit]     19128
     [junit]
-    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:122)
-    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:83)
-    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:75)
-    [junit] 	at simpledb.systemtest.ScanTest.validateScan(ScanTest.java:30)
-    [junit] 	at simpledb.systemtest.ScanTest.testSmall(ScanTest.java:40)
+    [junit]     at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:122)
+    [junit]     at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:83)
+    [junit]     at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:75)
+    [junit]     at simpledb.systemtest.ScanTest.validateScan(ScanTest.java:30)
+    [junit]     at simpledb.systemtest.ScanTest.testSmall(ScanTest.java:40)
 
 # ... more error messages ...
 ```
@@ -273,11 +292,15 @@ The GitLab servers are equipped with a continuous integration (CI) build server 
 
 ### 1.6\. Working in Eclipse
 
-[Eclipse](http://www.eclipse.org) is a graphical software development environment that you might be more comfortable with working in. The instructions we provide were generated by using Eclipse 3.5.2 (Galileo) for Java Developers (not the enterprise edition) with Java 1.6.0_20 on Ubuntu 10.04 LTS. They should also work under Windows or on MacOS.
+[Eclipse](http://www.eclipse.org) is a graphical software development environment that you might be more comfortable with working in. The instructions we provide were generated by using Eclipse 4.4.1 (Luna) for Java Developers (not the enterprise edition) with Java 1.8 on Ubuntu 10.04 LTS. They should also work under Windows or on MacOS.
 
 **Setting the Lab Up in Eclipse**
 
-*   Once Eclipse is installed, start it, and note that the first screen asks you to select a location for your workspace (we will refer to this directory as $W).
+*   Once Eclipse is installed, start it, and note that the first
+    screen asks you to select a location for your workspace (we will
+    refer to this directory as $W).
+*   You may want to 'git clone' your repository inside $W. If you
+    already cloned it, move it here.
 *   Under terminal, cd $W/simple-db-MY_USERNAME.
 *   Run `ant eclipse`. The _eclipse_ ant target will generate the eclipse meta files .project and .classpath under $W/simple-db-MY_USERNAME.
 *   Import the generated project to Eclipse using the steps [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm)
@@ -542,8 +565,18 @@ Note that `ant` compiles `test.java` and generates a new jarfile that contains i
 
 You must submit your code (see below) as well as a short (2 pages, maximum) writeup describing your approach. This writeup should:
 
-*   Describe any design decisions you made. These may be minimal for Lab 1.
-*   Discuss and justify any changes you made to the API.
+*   In your own words, describe what Lab1 was about: Describe the various components that
+    you implemented and how they work. This part needs to
+    **demonstrate your understanding** of the lab! If your description
+    looks like a copy paste of the instructions or a copy-paste of the
+    provided documentation you will lose points.
+*   Describe any design decisions you made. These may be minimal for
+Lab 1.
+*   Give one example of a unit test that could be added to improve the
+    set of unit tests that we provided for this lab.
+*   Discuss and justify any changes you made to the API. You really
+    should not change the API. If you plan to make a change, ask the
+    TAs first.
 *   Describe any missing or incomplete elements of your code.
 *   Describe how long you spent on the lab, and whether there was anything you found particularly difficult or confusing.
 
@@ -553,12 +586,12 @@ All CSE 444 labs are to be completed **INDIVIDUALLY**! However, you may discuss 
 
 ### 3.2\. Submitting your assignment
 
-You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline (before 11:59 PM on the due date). Place the write-up in a file called `answers.txt` or `answers.pdf` in the top level of your repository.
+You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab1-answers.txt` or `lab1-answers.pdf` in the top level of your repository.
 
 **Important**: In order for your write-up to be added to the git repo, you need to explicitly add it:
 
 ```sh
-$ git add answers.txt
+$ git add lab1-answers.txt
 ```
 
 You also need to explicitly add any other files you create, such as new `*.java` files.
@@ -600,7 +633,13 @@ To git@gitlab.com:cse444-16sp/hw-answers-pirateninja.git
 
 Git is a distributed version control system. This means everything operates offline until you run `git pull` or `git push`. This is a great feature.
 
-The bad thing is that you may **forget to `git push` your changes**. This is why we strongly, strongly suggest that you **check GitLab to be sure that what you want us to see matches up with what you expect**.
+The bad thing is that you may **forget to `git push` your changes**. This is why we strongly, strongly suggest that you **check GitLab to be sure that what you want us to see matches up with what you expect**.  As a second sanity check, you can re-clone your repository in a different directory to confirm the changes:
+
+```sh
+$ git clone git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git confirmation_directory
+$ cd confirmation_directory
+$ # ... make sure everything is as you expect ...
+```
 
 ### 3.3\. Submitting a bug
 
