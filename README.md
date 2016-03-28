@@ -224,18 +224,18 @@ $ ant systemtest
 # ... build output ...
 
     [junit] Testcase: testSmall took 0.017 sec
-    [junit]     Caused an ERROR
+    [junit] 	Caused an ERROR
     [junit] expected to find the following tuples:
-    [junit]     19128
+    [junit] 	19128
     [junit]
     [junit] java.lang.AssertionError: expected to find the following tuples:
-    [junit]     19128
+    [junit] 	19128
     [junit]
-    [junit]     at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:122)
-    [junit]     at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:83)
-    [junit]     at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:75)
-    [junit]     at simpledb.systemtest.ScanTest.validateScan(ScanTest.java:30)
-    [junit]     at simpledb.systemtest.ScanTest.testSmall(ScanTest.java:40)
+    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:122)
+    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:83)
+    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:75)
+    [junit] 	at simpledb.systemtest.ScanTest.validateScan(ScanTest.java:30)
+    [junit] 	at simpledb.systemtest.ScanTest.testSmall(ScanTest.java:40)
 
 # ... more error messages ...
 ```
@@ -397,7 +397,25 @@ Tuples in SimpleDB are quite basic. They consist of a collection of `Field` obje
 
 At this point, your code should pass the unit tests TupleTest and TupleDescTest. At this point, modifyRecordId() should fail because you havn't implemented it yet.
 
-End of Part 1\. For this part of the lab, please submit your implementation of TupleDesc.java and Tuple.java (see the end of the assignment instructions for dropbox link). Submitting the first part of lab 1 on time is worth 10% of your final grade for lab 1 and will be graded all-or-nothing.
+### Checkpoint -- End of Part 1
+
+For this part of the lab, please push your
+implementation of `TupleDesc.java` and `Tuple.java`.
+You may do this by executing the bash script `turnInLab.sh` with the tag *lab1-part1*
+ (see the end of
+the assignment for detailed submission instructions) as follows:
+
+```sh
+$ turnInLab.sh lab1-part1
+```
+
+Submitting the first
+part of lab 1 on time is worth 10% of your final grade for lab 1
+and will be graded all-or-nothing. We will NOT run any of the unit
+tests. We will just visually inspect that you submitted something
+reasonably complete.
+
+After executing the `turnInLab.sh` script, make sure to check your repository on GitLab to ensure that the tag has been property applied!  You may do this by visiting `https://gitlab.cs.washington.edu/cse444-16sp/simple-db-YOUR_USERNAME/tags`.
 
 ### 2.3\. Catalog
 
@@ -463,7 +481,7 @@ After you have implemented `HeapPage`, you will write methods for `HeapFile` in 
 
 To read a page from disk, you will first need to calculate the correct offset in the file. Hint: you will need random access to the file in order to read and write pages at arbitrary offsets. You should not call BufferPool methods when reading a page from disk.
 
-You will also need to implement the `HeapFile.iterator()` method, which should iterate through through the tuples of each page in the HeapFile. The iterator must use the `BufferPool.getPage()` method to access pages in the `HeapFile`. This method loads the page into the buffer pool and will eventually be used (in a later lab) to implement locking-based concurrency control and recovery. Do not load the entire table into memory on the open() call -- this will cause an out of memory error for very large tables.
+You will also need to implement the `HeapFile.iterator()` method, which should iterate through the tuples of each page in the HeapFile. The iterator must use the `BufferPool.getPage()` method to access pages in the `HeapFile`. This method loads the page into the buffer pool and will eventually be used (in a later lab) to implement locking-based concurrency control and recovery. Do not load the entire table into memory on the open() call -- this will cause an out of memory error for very large tables.
 
 At this point, your code should pass the unit tests in HeapFileReadTest.
 
@@ -600,16 +618,16 @@ The criteria for your lab being submitted on time is that your code must be tagg
 
 **Just because your code has been committed on your local machine does not mean that it has been submitted -- it needs to be on GitLab!**
 
-There is a bash script `turnInLab1.sh` in the root level directory of your repository that commits your changes, deletes any prior tag for the current lab, tags the current commit, and pushes the branch and tag to GitLab. If you are using Linux or Mac OSX, you should be able to run the following:
+There is a bash script `turnInLab.sh` in the root level directory of your repository that commits your changes, deletes any prior tag for the current lab, tags the current commit, and pushes the branch and tag to GitLab. If you are using Linux or Mac OSX, you should be able to run the following:
 
 ```sh
-$ ./turnInLab1.sh
+$ ./turnInLab.sh lab1
 ```
 
 You should see something like the following output:
 
 ```sh
-$ ./turnInLab1.sh
+$ ./turnInLab.sh lab1
 [master b155ba0] Lab 1
  1 file changed, 1 insertion(+)
 Deleted tag 'lab1' (was b26abd0)
