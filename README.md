@@ -467,7 +467,7 @@ The low (least significant) bits of each byte represents the status of the slots
 *   `src/java/simpledb/RecordId.java`
 *   `src/java/simpledb/HeapPage.java`
 
-Although you will not use them directly in Lab 1, we ask you to implement `getNumEmptySlots()` and `isSlotFree()` in HeapPage. These require pushing around bits in the page header. You may find it helpful to look at the other methods that have been provided in HeapPage or in `src/java/simpledb/HeapFileEncoder.java` to understand the layout of pages.
+Although you will not use them directly in Lab 1, we ask you to implement `getNumEmptySlots()` and `isSlotUsed()` in HeapPage. These require pushing around bits in the page header. You may find it helpful to look at the other methods that have been provided in HeapPage or in `src/java/simpledb/HeapFileEncoder.java` to understand the layout of pages.
 
 You will also need to implement an Iterator over the tuples in the page, which may involve an auxiliary class or data structure.
 
