@@ -303,7 +303,7 @@ The GitLab servers are equipped with a continuous integration (CI) build server 
     already cloned it, move it here.
 *   Under terminal, cd $W/simple-db-MY_USERNAME.
 *   Run `ant eclipse`. The _eclipse_ ant target will generate the eclipse meta files .project and .classpath under $W/simple-db-MY_USERNAME.
-*   Import the generated project to Eclipse using the steps [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm)
+*   Import the generated project to Eclipse using the steps [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm) by clicking EGit Documentation > EGit User Guide > Tasks.
 
 **Running Individual Unit and System Tests**
 
@@ -380,7 +380,7 @@ SimpleDB does not include many things that you may think of as being a part of a
 
 In the rest of this Section, we describe each of the main components of SimpleDB that you will need to implement in this lab. You should use the exercises in this discussion to guide your implementation. This document is by no means a complete specification for SimpleDB; you will need to make decisions about how to design and implement various parts of the system. Note that for Lab 1 you do not need to implement any operators (e.g., select, join, project) except sequential scan. You will add support for additional operators in future labs.
 
-You may also wish to consult the [JavaDoc](../simpledb/doc) for SimpleDB.
+You may also wish to consult the [JavaDoc](https://courses.cs.washington.edu/courses/cse444/16sp/labs/lab1/javadoc/) for SimpleDB.
 
 ### 2.1\. The Database Class
 
@@ -506,7 +506,7 @@ At this point, you should be able to complete the ScanTest system test. Good wor
 
 You will fill in other operators in subsequent labs.
 
-### 2.7. A simple query
+### 2.7. A simple query [query_walkthrough]
 
 The purpose of this section is to illustrate how these various components are connected together to process a simple query. Suppose you have a data file, "some_data_file.txt", with the following contents:
 
