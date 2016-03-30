@@ -2,4 +2,6 @@
 bin/
 log
 *.iml
+.classpath
+.project
 out
