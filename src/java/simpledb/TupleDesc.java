@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -150,7 +151,7 @@ public class TupleDesc implements Serializable {
     public int fieldNameToIndex(String name) throws NoSuchElementException {
         // some code goes here
         for (int i = 0; i < TDItems.size(); i++) {
-        	if (TDItems.get(i).fieldName.equals(name)) {
+        	if (this.getFieldName(i) != null && this.getFieldName(i).equals(name)) {
         		return i;
         	}
         }
