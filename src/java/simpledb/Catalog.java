@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -18,12 +19,65 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Catalog {
 
+	/**
+	 * Mapping between table names and table id
+	 */
+	private Map<String, Integer> nameMap;
+	
+	/**
+	 * Mapping between table id and table
+	 */
+	private Map<Integer, Table> idMap;
+	
+    /**
+     * A help class to facilitate organizing the information of each table
+     * */
+	 public static class Table implements Serializable {
+
+	        private static final long serialVersionUID = 1L;
+
+	        /**
+	         * The DBFile of the table
+	         * */
+	        public final DbFile dbFile;
+	        
+	        /**
+	         * The TableId of the table
+	         * */
+	        public final int tableid;
+	        
+	        /**
+	         * The Schema of the table
+	         * */
+	        public final TupleDesc schema;
+	        
+	        /**
+	         * The name of the table
+	         * */
+	        public final String name;
+	        
+	        /**
+	         * The name of the primary key field for the table
+	         * */
+	        public final String pkeyField;
+
+	        public Table(DbFile dbFile, String name, String pkeyField) {
+	            this.dbFile = dbFile;
+	            this.tableid = dbFile.getId();
+	            this.schema = dbFile.getTupleDesc();
+	            this.name = name;
+	            this.pkeyField = pkeyField;
+	        }
+	    }
+	
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
         // some code goes here
+    	this.nameMap = new HashMap<String, Integer>();
+    	this.idMap = new HashMap<Integer, Table>();
     }
 
     /**
@@ -37,6 +91,12 @@ public class Catalog {
      */
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
+    	if (name == null) {
+    		throw new IllegalArgumentException("name cannot be null");
+    	}
+    	Table table = new Table(file, name, pkeyField);
+    	this.idMap.put(table.tableid, table);
+    	this.nameMap.put(table.name, table.tableid);
     }
 
     public void addTable(DbFile file, String name) {
@@ -60,7 +120,11 @@ public class Catalog {
      */
     public int getTableId(String name) throws NoSuchElementException {
         // some code goes here
-        return 0;
+        if (!nameMap.containsKey(name)) {
+        	throw new NoSuchElementException();
+        }
+        
+        return nameMap.get(name);
     }
 
     /**
@@ -71,7 +135,11 @@ public class Catalog {
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
         // some code goes here
-        return null;
+        if (!idMap.containsKey(tableid)) {
+        	throw new NoSuchElementException();
+        }
+        
+        return idMap.get(tableid).schema;
     }
 
     /**
@@ -82,27 +150,41 @@ public class Catalog {
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
         // some code goes here
-        return null;
+        if (!idMap.containsKey(tableid)) {
+        	throw new NoSuchElementException();
+        }
+        
+        return idMap.get(tableid).dbFile;
     }
 
     public String getPrimaryKey(int tableid) {
         // some code goes here
-        return null;
+        if (!idMap.containsKey(tableid)) {
+        	throw new NoSuchElementException();
+        }
+        
+        return idMap.get(tableid).pkeyField;
     }
 
     public Iterator<Integer> tableIdIterator() {
         // some code goes here
-        return null;
+        return idMap.keySet().iterator();
     }
 
-    public String getTableName(int id) {
+    public String getTableName(int tableid) {
         // some code goes here
-        return null;
+        if (!idMap.containsKey(tableid)) {
+        	throw new NoSuchElementException();
+        }
+        
+        return idMap.get(tableid).name;
     }
     
     /** Delete all tables from the catalog */
     public void clear() {
         // some code goes here
+    	nameMap.clear();
+    	idMap.clear();
     }
     
     /**
