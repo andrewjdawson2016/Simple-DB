@@ -1,8 +1,8 @@
 package simpledb;
 
-import java.io.*;
-
-import java.util.concurrent.ConcurrentHashMap;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -25,6 +25,16 @@ public class BufferPool {
     other classes. BufferPool should use the numPages argument to the
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
+    
+    /**
+     * Collection of pages cached in BufferPool
+     */
+    private Map<PageId, Page> cachedPages;
+    
+    /**
+     * Number of pages that BufferPool can hold
+     */
+    private int numPages;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -33,6 +43,8 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         // some code goes here
+    	this.cachedPages = new HashMap<PageId, Page>();
+    	this.numPages = numPages;
     }
     
     public static int getPageSize() {
@@ -67,7 +79,19 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+    	if (this.cachedPages.containsKey(pid)) {
+    		return this.cachedPages.get(pid);
+    	}
+        if (this.cachedPages.size() == this.numPages) {
+        	throw new DbException("Buffer Pool at maximum capcity");
+        }
+        
+        Catalog catalog = Database.getCatalog();
+        DbFile heapFile = catalog.getDatabaseFile(pid.getTableId());
+        Page page = heapFile.readPage(pid);
+        this.cachedPages.put(page.getId(), page);
+        this.numPages++;
+        return page;
     }
 
     /**
