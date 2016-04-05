@@ -86,9 +86,7 @@ public class BufferPool {
         	throw new DbException("Buffer Pool at maximum capcity");
         }
         
-        Catalog catalog = Database.getCatalog();
-        DbFile heapFile = catalog.getDatabaseFile(pid.getTableId());
-        Page page = heapFile.readPage(pid);
+        Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
         this.cachedPages.put(page.getId(), page);
         this.numPages++;
         return page;
