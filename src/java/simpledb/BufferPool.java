@@ -88,7 +88,6 @@ public class BufferPool {
         
         Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
         this.cachedPages.put(page.getId(), page);
-        this.numPages++;
         return page;
     }
 
