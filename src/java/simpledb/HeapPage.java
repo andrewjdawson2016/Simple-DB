@@ -315,7 +315,15 @@ public class HeapPage implements Page {
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return null;
+        int numSlotsUsed = this.numSlots - this.getNumEmptySlots();
+        Tuple[] usedTuples = new Tuple[numSlotsUsed];
+        int usedTuplesIndex = 0;
+        for (int i = 0; i < this.numSlots; i++) {
+        	if (isSlotUsed(i)) {
+        		usedTuples[usedTuplesIndex] = this.tuples[i];
+        		usedTuplesIndex++;
+        	}
+        }
+        return Arrays.asList(usedTuples).iterator();
     }
-
 }
