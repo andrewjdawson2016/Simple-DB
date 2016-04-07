@@ -1,6 +1,5 @@
 package simpledb;
 
-import java.util.Arrays;
 import java.util.Iterator;
 
 public class DbHeapFileIterator extends AbstractDbFileIterator {
@@ -21,6 +20,11 @@ public class DbHeapFileIterator extends AbstractDbFileIterator {
 	private Iterator<Tuple> currentIterator;
 	
 	/**
+	 * The TransactionId for this iterator
+	 */
+	private TransactionId tid;
+	
+	/**
 	 * The highest valid page number
 	 */
 	private int highestPageNumber;
@@ -28,23 +32,22 @@ public class DbHeapFileIterator extends AbstractDbFileIterator {
 	/**
 	 * Constructs a new DbHeapFileIterator
 	 */
-	public DbHeapFileIterator(int tableid, int highestPageNumber) {
+	public DbHeapFileIterator(int tableid, int highestPageNumber, TransactionId tid) {
 		this.tableid = tableid;
-		this.currentPageNumber = 0;
 		this.currentIterator = null;
 		this.highestPageNumber = highestPageNumber;
+		this.tid = tid;
 	}
 	
 	@Override
 	public void open() throws DbException, TransactionAbortedException {
-		HeapPageId pid = new HeapPageId(this.tableid, this.currentPageNumber);
-		HeapPage page = (HeapPage) Database.getBufferPool().getPage(new TransactionId(), 
-				pid, Permissions.READ_ONLY);
-		this.currentIterator = page.iterator();
+		this.currentPageNumber = 0;
+		updateIterator();
 	}
 
 	@Override
 	public void rewind() throws DbException, TransactionAbortedException {
+		close();
 		open();
 	}
 
@@ -52,17 +55,31 @@ public class DbHeapFileIterator extends AbstractDbFileIterator {
 	protected Tuple readNext() throws DbException, TransactionAbortedException {
 		if (this.currentIterator == null) {
 			return null;
-		} else if (this.currentIterator.hasNext()) {
+		} 
+		
+		else if (this.currentIterator.hasNext()) {
 			return this.currentIterator.next();
-		} else if (this.currentPageNumber == this.highestPageNumber) {
+		} 
+		
+		else if (this.currentPageNumber == this.highestPageNumber) {
+			this.currentIterator = null;
 			return null;
-		} else {
-			this.currentPageNumber++;
-			open();
+		} 
+		
+		else {
+			this.currentPageNumber = this.currentPageNumber + 1;
+			updateIterator();
 			return this.currentIterator.next();
 		}
 	}
 	
+	private void updateIterator() throws TransactionAbortedException, DbException {
+		HeapPageId pid = new HeapPageId(this.tableid, this.currentPageNumber);
+		HeapPage page = (HeapPage) Database.getBufferPool().getPage(this.tid, 
+				pid, Permissions.READ_ONLY);
+		this.currentIterator = page.iterator();
+	}
+		
 	@Override
     public void close() {
         super.close();

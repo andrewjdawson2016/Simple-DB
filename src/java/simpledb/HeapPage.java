@@ -46,8 +46,9 @@ public class HeapPage implements Page {
 
         // allocate and read the header slots of this page
         header = new byte[getHeaderSize()];
-        for (int i=0; i<header.length; i++)
+        for (int i=0; i<header.length; i++) {
             header[i] = dis.readByte();
+        }
         
         tuples = new Tuple[numSlots];
         try{
@@ -283,7 +284,7 @@ public class HeapPage implements Page {
     		return this.numSlots;
     	}
     	int result = 0;
-    	for (int i = 0; i < (8 * this.header.length); i++) {
+    	for (int i = 0; i < this.numSlots; i++) {
     		if (!this.isSlotUsed(i)) {
     			result++;
     		}

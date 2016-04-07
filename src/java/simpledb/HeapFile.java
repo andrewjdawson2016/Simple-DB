@@ -81,9 +81,10 @@ public class HeapFile implements DbFile {
         }
         byte[] data = new byte[BufferPool.getPageSize()];
         try {
-        	FileInputStream stream = new FileInputStream(this.file);
-        	stream.read(data);
-        	stream.close();
+        	RandomAccessFile randomAccessFile = new RandomAccessFile(this.file, "r");
+        	randomAccessFile.seek(byteOffSet);
+        	randomAccessFile.read(data);
+        	randomAccessFile.close();
             HeapPageId heapPageId = (HeapPageId) pid;
             return new HeapPage(heapPageId, data);
         } catch (Exception e) {
@@ -125,7 +126,7 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         // some code goes here
-        return new DbHeapFileIterator(this.getId(), this.numPages() - 1);
+        return new DbHeapFileIterator(this.getId(), this.numPages() - 1, tid);
     }
 }
 
