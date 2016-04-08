@@ -3,3 +3,8 @@ bin/
 log
 *.iml
 out
+authors.dat
+dblp_simpledb.schema
+paperauths.dat
+papers.dat
+venues.dat
