@@ -1,600 +1,402 @@
-# CSE444 Lab 1: SimpleDB
+# CSE444 Lab 2: SimpleDB Operators
 
-**Acknowledgments:** The SimpleDB lab series was originally developed by Prof. Sam Madden from MIT. In 444, we are working together with the MIT team on extending and enhancing this lab series.
+#### Version History:
+*   4/4/16 : Initial version
 
+## DEADLINES
+##### Part 1 Due: Friday, April 15, 2016
+##### Due: Friday, April 22, 2016
 
-**DEADLINES**
+### For Part 1 of the lab, please submit your solutions for the following exercises:
 
-**Part 1 due: Friday, April 1 11:00PM**
+*   Exercise 1 (**Section 2.1**)
+*   Exercise 2 (**Section 2.2**)
 
-**Due: Friday, April 8 11:00 PM**
+Submitting part 1 of lab 2 on time is worth 10% of your lab 2 final grade and will be graded all-or-nothing. As in the case of lab 1, we will only visually inspect your implementation at this point. We will NOT run any unit tests. However, you are strongly advised to ensure that your code passes the tests. Of course, when you submit your solution for the entire lab, we will run all unit tests (and additional tests also).
 
-**IMPORTANT**: Part 1 should take about 1 hour (if all goes well) and it's mostly just there to make sure you get set up with the lab early. Part 2 requires a significant amount of time... really significant! It requires reading the code that we provide, figuring out how everything should work together, and then writing quite a bit of code yourself.
+## Lab Description
 
-**Version History:**
+In this lab assignment, you will write a set of operators for SimpleDB to implement table modifications (e.g., insert and delete records), selections, joins, and aggregates. These will build on top of the foundation that you wrote in Lab 1 to provide you with a database system that can perform simple queries over multiple tables.
 
-*   March 28th: First revision.
+Additionally, we ignored the issue of buffer pool management in Lab 1: we have not dealt with the problem that arises when we reference more pages than we can fit in memory over the lifetime of the database. In Lab 2, you will design an eviction policy to flush stale pages from the buffer pool.
 
-In the lab assignments in CSE444 you will write a basic database management system called SimpleDB. For this lab, you will focus on implementing the core modules required to access stored data on disk; in future labs, you will add support for various query processing operators, as well as transactions, locking, and concurrent queries.
+You do not need to implement transactions or locking in this lab.
 
-SimpleDB is written in Java. We have provided you with a set of mostly unimplemented classes and interfaces. You will need to write the code for these classes. We will grade your code by running a set of system tests written using [JUnit](http://junit.sourceforge.net/). We have also provided a number of unit tests, which we will not use for grading but that you may find useful in verifying that your code works.
-
-The remainder of this document describes the basic architecture of SimpleDB, gives some suggestions about how to start coding, and discusses how to hand in your lab.
-
-We **strongly recommend** that you start as early as possible on this lab. It requires you to write a fair amount of code!
+The remainder of this document gives some suggestions about how to start coding, describes a set of exercises to help you work through the lab, and discusses how to hand in your code. This lab requires you to write a fair amount of code, so we encourage you to **start early**!
 
 ## 1\. Getting started
 
-These instructions are written for a Unix-based platform (e.g., Linux, MacOS, etc.) Because the code is written in Java, it should work under Windows as well, though the directions in this document may not apply.
+You should begin with the code you submitted for Lab 1 (if you did not submit code for Lab 1, or your solution didn't work properly, contact us to discuss options). We have provided you with extra code and extra test cases for this lab that are not in the original code distribution you received. We reiterate that the unit tests we provide are to help guide your implementation along, but they are not intended to be comprehensive or to establish correctness.
 
-We have included Section 1.5 on using the project with Eclipse, and Section 1.6 on using the IntelliJ IDEA. But first, we need to move the skeleton code onto your local file system.
-
-### 1.1\. Working with Git
-
-We will be using `git`, a source code control tool, for the SimpleDB labs. This will allow you to download the code for the labs, and also submit the labs in a standardized format that will streamline grading.
-
-You will also be able to use `git` to commit your progress on the labs
-as you go. This is **important**: Use `git` to back up your work. Back
-up regulary by both committing and pushing your code as we describe below.
-
-Course git repositories will be hosted as a repository in [GitLab](https://gitlab.cs.washington.edu). Your code will be in a private repository that is visible only to you and the course staff.
-
-#### 1.1.1\. Getting started with Git
-
-There are numerous guides on using `git` that are available. They range from being interactive to just text-based. Find one that works and experiment -- making mistakes and fixing them is a great way to learn. Here is a [link to resources](https://help.github.com/articles/what-are-other-good-resources-for-learning-git-and-github) that GitHub suggests starting with. If you have no experience with `git`, you may find this [web-based tutorial helpful](https://try.github.io/levels/1/challenges/1).
-
-Git may already be installed in your environment; if it's not, you'll need to install it first. For `bash`/Linux environments, git should be a simple `apt-get` / `yum` / etc. install. More detailed instructions may be [found here](http://git-scm.com/book/en/Getting-Started-Installing-Git).
-
-If you are using Eclipse or IntelliJ, many versions come with git already configured. The instructions will be slightly different than the command line instructions listed but will work for any OS. For Eclipse, detailed instructions can be found at [EGit User Guide](http://wiki.eclipse.org/EGit/User_Guide) or [EGit Tutorial](http://eclipsesource.com/blogs/tutorials/egit-tutorial).
-
-#### 1.1.2\. Cloning your SimpleDB repository
-
-We've created a GitLab repository that you will use to implement SimpleDB. This repository is hosted on the [CSE GitLab](https://gitlab.cs.washington.edu) site, and you can view it by visiting the GitLab website at `https://gitlab.cs.washington.edu/cse444-16sp/simple-db-[your GitLab username]`. You'll be using this **same repository** for each of the labs this quarter, so if you don't see this repository or are unable to access it, let us know immediately!
-
-The first thing you'll need to do is set up a SSH key to allow communication with GitLab:
-
-1.  If you don't already have one, generate a new SSH key. See [these instructions](http://doc.gitlab.com/ce/ssh/README.html) for details on how to do this.
-2.  Visit the [GitLab SSH key management page](https://gitlab.cs.washington.edu/profile/keys). You'll need to log in using your CSE account.
-3.  Click "Add SSH Key" and paste in your **public** key into the text area.
-
-While you're logged into the GitLab website, browse around to see which projects you have access to. You should have access to `simple-db-[your username]`. Spend a few minutes getting familiar with the directory layout and file structure.
-
-We next want to move the code from the GitLab repository onto your local file system. To do this, you'll need to clone the lab repository by issuing the following commands on the command line:
-
-```sh
-$ git clone https://gitlab.cs.washington.edu/cse444-16sp/simple-db-MY_GITLAB_USERNAME.git
-$ cd simple-db-MY_GITLAB_USERNAME
-```
-
-This will make a complete replica of the lab repository locally. If you get an error that looks like:
-
-```sh
-Cloning into 'simple-db-myusername'...
-Permission denied (publickey).
-fatal: Could not read from remote repository.
-```
-
-... then there is a problem with your GitLab configuration. Check to make sure that your GitLab username matches the repository suffix, that your private key is in your SSH directory (`~/.ssh`) and has the correct permissions, and that you can view the repository through the website.
-
-Cloning will make a complete replica of the lab repository locally. Any time you `commit` and `push` your local changes, they will appear in the GitLab repository.  Since we'll be grading the copy in the GitLab repository, it's important that you remember to push all of your changes!
-
-#### 1.1.3\. Adding an upstream remote
-
-The repository you just cloned is a replica of your own private repository on GitLab.  The copy on your file system is a local copy, and the copy on GitLab is referred to as the `origin` remote copy.  You can view a list of these remote links as follows:
-
-```sh
-$ git remote -v
-```
-
-There is one more level of indirection to consider.
-When we created your `simple-db-yourusername` repository, we forked a copy of it from another repository `simple-db`.  In `git` parlance, this "original repository" referred to as an `upstream` repository.
-When we release bug fixes and subsequent labs, we will put our changes into the upstream repository, and you will need to be able to pull those changes into your own.  See [the documentation](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes) for more details on working with remotes -- they can be confusing!
-
-In order to be able to pull the changes from the upstream repository, we'll need to record a link to the `upstream` remote in your own local repository:
-
-```sh
-$ # Note that this repository does not have your username as a suffix!
-$ git remote add upstream git@gitlab.cs.washington.edu:cse444-16sp/simple-db.git
-```
-
-For reference, your final remote configuration should read like the following when it's setup correctly:
-
-```sh
-$ git remote -v
-  origin  git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git (fetch)
-  origin  git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git (push)
-  upstream    git@gitlab.cs.washington.edu:cse444-16sp/simple-db.git (fetch)
-  upstream    git@gitlab.cs.washington.edu:cse444-16sp/simple-db.git (push)
-```
-
-In this configuration, the `origin` (default) remote links to **your** repository where you'll be pushing your individual submission. The `upstream` remote points to **our** repository where you'll be pulling subsequent labs and bug fixes (more on this below).
-
-Let's test out the origin remote by doing a push of your master branch to GitLab. Do this by issuing the following commands:
-
-```sh
-$ touch empty_file
-$ git add empty_file
-$ git commit empty_file -m 'Testing git'
-$ git push # ... to origin by default
-```
-
-The `git push` tells git to push all of your **committed** changes to a remote.  If none is specified, `origin` is assumed by default (you can be explicit about this by executing `git push origin`).  Since the `upstream` remote is read-only, you'll only be able to `pull` from it -- `git push upstream` will fail with a permission error.
-
-After executing these commands, you should see something like the following:
-
-```sh
-Counting objects: 4, done.
-Delta compression using up to 4 threads.
-Compressing objects: 100% (2/2), done.
-Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
-Total 3 (delta 1), reused 0 (delta 0)
-To git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git
-   cb5be61..9bbce8d  master -> master
-```
-
-We pushed a blank file to our origin remote, which isn't very interesting. Let's clean up after ourselves:
-
-```sh
-$ # Tell git we want to remove this file from our repository
-$ git rm empty_file
-$ # Now commit all pending changes (-a) with the specified message (-m)
-$ git commit -a -m 'Removed test file'
-$ # Now, push this change to GitLab
-$ git push
-```
-
-If you don't know Git that well, this probably seemed very arcane. Just keep using Git and you'll understand more and more. We'll provide explicit instructions below on how to use these commands to actually indicate your final lab solution.
-
-#### 1.1.4\. Pulling from the upstream remote
-
-If we release additional details or bug fixes for this lab, we'll push them to the repository that you just added as an `upstream` remote. You'll need to `pull` and `merge` them into your own repository. (You'll also do this for subsequent labs!) You can do both of these things with the following command:
+You will need to add these new files to your release. You will do this by performing a `git` pull from the upstream repository that you configured during lab one:
 
 ```sh
 $ git pull upstream master
-remote: Counting objects: 3, done.
-remote: Compressing objects: 100% (3/3), done.
-remote: Total 3 (delta 2), reused 0 (delta 0)
-Unpacking objects: 100% (3/3), done.
-From gitlab.cs.washington.edu:cse444-16sp/simple-db
- * branch            master     -> FETCH_HEAD
-   7f81148..b0c4a3e  master     -> upstream/master
-Merge made by the 'recursive' strategy.
- README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 ```
 
-Here we pulled and merged changes to the `README.md` file. Git may open a text editor to allow you to specify a merge commit message; you may leave this as the default. Note that these changes are merged locally, but we will eventually want to push them to the GitLab repository (`git push`).
+*   **Eclipse users** should do one of the following:
+    *   Either start a new project called CSE444-lab2 using the instructions from lab 1.
+    *   Or, continue using the CSE444-lab1 project. In that case, you should add the new files to your lab 1 directory by selecting **Team > Pull**. For help in Eclipse/Git configuration look at the [EGit User Guide](https://wiki.eclipse.org/EGit/User_Guide#Fetching_from_upstream) under 3.3.4 Pulling New Changes from Upstream Branch.
 
-Note that it's possible that there aren't any pending changes in the upstream repository for you to pull.  If so, `git` will tell you that everything is up to date.
+    You may need to take one more step for your code to compile. Under the package explorer, right click the project name (probably `CSE444-lab1`), and select **Properties**. Choose **Java Build Path** on the left-hand-side, and click on the **Libraries** tab on the right-hand-side. Push the **Add JARs...** button, select **zql.jar** and **jline-0.9.94.jar**, and push **OK**, followed by **OK**. Your code should now compile.
 
-### 1.2\. Using Ant and running unit tests
+### 1.3\. Implementation hints
 
-SimpleDB uses the [Ant build tool](http://ant.apache.org/) to compile the code and run tests. Ant is similar to [make](http://www.gnu.org/software/make/manual/), but the build file is written in XML and is somewhat better suited to Java code. Most modern Linux distributions include Ant.
+As before, we **strongly encourage** you to read through this entire document to get a feel for the high-level design of SimpleDB before you write code.
 
-To help you during development, we have provided a set of unit tests in addition to the end-to-end tests that we use for grading. These are by no means comprehensive, and you should not rely on them exclusively to verify the correctness of your project (put those CSE331 skills to use!).
+We suggest exercises along this document to guide your implementation, but you may find that a different order makes more sense for you. As before, we will grade your assignment by looking at your code and verifying that you have passed the test for the ant targets `test` and `systemtest`. See Section 3.4 for a complete discussion of grading and list of the tests you will need to pass.
 
-To run the unit tests use the `test` build target:
+Here's a rough outline of one way you might proceed with your SimpleDB implementation; more details on the steps in this outline, including exercises, are given in Section 2 below.
 
-```sh
-$ cd simple-db-MY_USERNAME
-$ # run all unit tests
-$ ant test
-$ # run a specific unit test
-$ ant runtest -Dtest=TupleTest
-```
+*   Implement the operators `Filter` and `Join` and verify that their corresponding tests work. The Javadoc comments for these operators contain details about how they should work. We have given you implementations of `Project` and `OrderBy` which may help you understand how other operators work.
+*   Implement `IntegerAggregator` and `StringAggregator`. Here, you will write the logic that actually computes an aggregate over a particular field across multiple groups in a sequence of input tuples. Use integer division for computing the average, since SimpleDB only supports integers. StringAggegator only needs to support the COUNT aggregate, since the other operations do not make sense for strings.
+*   Implement the `Aggregate` operator. As with other operators, aggregates implement the `DbIterator` interface so that they can be placed in SimpleDB query plans. Note that the output of an `Aggregate` operator is an aggregate value of an entire group for each call to `next()`, and that the aggregate constructor takes the aggregation and grouping fields.
+*   Implement the methods related to tuple insertion, deletion, and page eviction in `BufferPool`. You do not need to worry about transactions at this point.
+*   Implement the `Insert` and `Delete` operators. Like all operators, `Insert` and `Delete` implement `DbIterator`, accepting a stream of tuples to insert or delete and outputting a single tuple with an integer field that indicates the number of tuples inserted or deleted. These operators will need to call the appropriate methods in `BufferPool` that actually modify the pages on disk. Check that the tests for inserting and deleting tuples work properly.
 
-You should see output similar to:
+    Note that SimpleDB does not implement any kind of consistency or integrity checking, so it is possible to insert duplicate records into a file and there is no way to enforce primary or foreign key constraints.
 
-```sh
-# build output...
+At this point you should be able to pass all of the tests in the ant `systemtest` target, which is the goal of this lab.
 
-test:
-    [junit] Running simpledb.CatalogTest
-    [junit] Testsuite: simpledb.CatalogTest
-    [junit] Tests run: 2, Failures: 0, Errors: 2, Time elapsed: 0.037 sec
-    [junit] Tests run: 2, Failures: 0, Errors: 2, Time elapsed: 0.037 sec
+You'll also be able to use the provided SQL parser to run SQL queries against your database! See Section 2.7 for a brief tutorial and a description of an optional contest to see who can write the fastest SimpleDB implementation.
 
-# ... stack traces and error reports ...
-```
-
-The output above indicates that two errors occurred during compilation; this is because the code we have given you doesn't yet work. As you complete parts of the lab, you will work towards passing additional unit tests. If you wish to write new unit tests as you code, they should be added to the `test/simpledb` directory.
-
-For more details about how to use Ant, see the [manual](http://ant.apache.org/manual/). The [Running Ant](http://ant.apache.org/manual/running.html) section provides details about using the `ant` command. However, the quick reference table below should be sufficient for working on the labs.
-
-
-| Command                          | Description                                                    |
-|----------------------------------|----------------------------------------------------------------|
-| `ant`                            | Build the default target (for simpledb, this is dist).         |
-| `ant -projecthelp`               | List all the targets in `build.xml` with descriptions.         |
-| `ant dist`                       | Compile the code in src and package it in `dist/simpledb.jar`. |
-| `ant test`                       | Compile and run all the unit tests.                            |
-| `ant runtest -Dtest=testname`    | Run the unit test named `testname`.                            |
-| `ant systemtest`                 | Compile and run all the system tests.                          |
-| `ant runsystest -Dtest=testname` | Compile and run the system test named `testname`.              |
-| `ant handin`                     | Generate tarball for submission.                               |
-| `ant eclipse`                    | Generate eclipse project files You can import it by the steps described [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm). |
-
-### 1.3\. Running end-to-end tests
-
-We have also provided a set of end-to-end tests that will eventually be used for grading. These tests are structured as JUnit tests that live in the `test/simpledb/systemtest` directory. To run all the system tests, use the `systemtest` build target:
-
-```sh
-$ ant systemtest
-
-# ... build output ...
-
-    [junit] Testcase: testSmall took 0.017 sec
-    [junit] 	Caused an ERROR
-    [junit] expected to find the following tuples:
-    [junit] 	19128
-    [junit]
-    [junit] java.lang.AssertionError: expected to find the following tuples:
-    [junit] 	19128
-    [junit]
-    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:122)
-    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:83)
-    [junit] 	at simpledb.systemtest.SystemTestUtil.matchTuples(SystemTestUtil.java:75)
-    [junit] 	at simpledb.systemtest.ScanTest.validateScan(ScanTest.java:30)
-    [junit] 	at simpledb.systemtest.ScanTest.testSmall(ScanTest.java:40)
-
-# ... more error messages ...
-```
-
-This indicates that this test failed, showing the stack trace where the error was detected. To debug, start by **reading the source code where the error occurred**. **Look at both your source code and the source code of the unit test.** When the tests pass, you will see something like the following:
-
-```sh
-$ ant systemtest
-
-# ... build output ...
-
-    [junit] Testsuite: simpledb.systemtest.ScanTest
-    [junit] Tests run: 3, Failures: 0, Errors: 0, Time elapsed: 7.278 sec
-    [junit] Tests run: 3, Failures: 0, Errors: 0, Time elapsed: 7.278 sec
-    [junit]
-    [junit] Testcase: testSmall took 0.937 sec
-    [junit] Testcase: testLarge took 5.276 sec
-    [junit] Testcase: testRandom took 1.049 sec
-
-BUILD SUCCESSFUL
-Total time: 52 seconds
-```
-
-### 1.4\. Creating tables for your own tests
-
-It is likely you'll want to create your own tests and your own data tables to test your own implementation of SimpleDB. You can create any `.txt` file and convert it to a `.dat` file in SimpleDB's `HeapFile` format using the command:
-
-```sh
-$ java -jar dist/simpledb.jar convert file.txt N
-```
-
-where `file.txt` is the name of the file and `N` is the number of columns in the file. Notice that `file.txt` has to be in the following format:
-
-```
-int1,int2,...,intN
-int1,int2,...,intN
-int1,int2,...,intN
-int1,int2,...,intN
-```
-
-...where each intN is a non-negative integer.
-
-To view the contents of a table, use the `print` command:
-
-```sh
-$ java -jar dist/simpledb.jar print file.dat N
-```
-
-where `file.dat` is the name of a table created with the `convert` command, and `N` is the number of columns in the file.
-
-### 1.5\. Continuous integration
-
-The GitLab servers are equipped with a continuous integration (CI) build server that executes the unit tests against any commits that you push. You can view the status of the CI build on the GitLab website under your individual repository. Note that the CI build environment **precisely matches** the environment that we will use to grade your assignments. If your unit tests are passing locally but you are experiencing build or testing failures on the CI server, you will need to investigate and modify your implementation until the CI build passes.
-
-### 1.6\. Working in Eclipse
-
-[Eclipse](http://www.eclipse.org) is a graphical software development environment that you might be more comfortable with working in. The instructions we provide were generated by using Eclipse 4.4.1 (Luna) for Java Developers (not the enterprise edition) with Java 1.8 on Ubuntu 10.04 LTS. They should also work under Windows or on MacOS.
-
-**Setting the Lab Up in Eclipse**
-
-*   Once Eclipse is installed, start it, and note that the first
-    screen asks you to select a location for your workspace (we will
-    refer to this directory as $W).
-*   You may want to 'git clone' your repository inside $W. If you
-    already cloned it, move it here.
-*   Under terminal, cd $W/simple-db-MY_USERNAME.
-*   Run `ant eclipse`. The _eclipse_ ant target will generate the eclipse meta files .project and .classpath under $W/simple-db-MY_USERNAME.
-*   Import the generated project to Eclipse using the steps [here](http://help.eclipse.org/helios/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2Ftasks%2Ftasks-importproject.htm) by clicking EGit Documentation > EGit User Guide > Tasks.
-
-**Running Individual Unit and System Tests**
-
-To run a unit test or system test (both are JUnit tests, and can be initialized the same way), go to the Package Explorer tab on the left side of your screen. Under the "simple-db-MY_USERNAME" project, open the "test" directory. Unit tests are found in the "simpledb" package, and system tests are found in the "simpledb.systemtests" package. To run one of these tests, select the test (they are all called *Test.java - don't select TestUtil.java or SystemTestUtil.java), right click on it, select "Run As," and select "JUnit Test." This will bring up a JUnit tab, which will tell you the status of the individual tests within the JUnit test suite, and will show you exceptions and other errors that will help you debug problems.
-
-**Running Ant Build Targets**
-
-If you want to run commands such as "ant test" or "ant systemtest," right click on build.xml in the Package Explorer. Select "Run As," and then "Ant Build..." (note: select the option with the ellipsis (...), otherwise you won't be presented with a set of build targets to run). Then, in the "Targets" tab of the next screen, check off the targets you want to run (probably "dist" and one of "test" or "systemtest"). This should run the build targets and show you the results in Eclipse's console window.
-
-### 1.7\. Working in IntelliJ
-
-Reached the point where you need to [vent about Eclipse in anger](http://www.ihateeclipse.com/)? The IntelliJ IDE from JetBrains is an alternative development environment that may be used for the labs. If you don't already have a copy, [download](https://www.jetbrains.com/idea) and [install](https://www.jetbrains.com/help/idea/2016.1/installing-and-launching.html?origin=old_help) the IDE. If you want to try out the proprietary edition, JetBrains offers a [student license](https://www.jetbrains.com/student/).
-
-Once IntelliJ is installed and launched, select "Import Project" from the initial dialog. Point IntelliJ to the directory of your cloned repository, and accept the default settings. Once the project loads, you may right-click on `build.xml` and select "Use as Ant build" to launch the Ant tests. Alternatively, you may use the IntelliJ interactive testing functionality. Use `ctrl-F9` to launch all tests; see the [IntelliJ documentation](https://www.jetbrains.com/help/idea/2016.1/performing-tests.html) for more details.
-
-### 1.8\. Implementation hints
-
-Before beginning to write code, we **strongly encourage** you to read through this entire document to get a feel for the high-level design of SimpleDB.
-
-You will need to fill in any piece of code that is not implemented. It will be obvious where we think you should write code. You may need to add private methods and/or helper classes. You may change APIs, but make sure our [grading](#grading) tests still run and make sure to mention, explain, and defend your decisions in your writeup.
-
-In addition to the methods that you need to fill out for this lab, the class interfaces contain numerous methods that you need not implement until subsequent labs. These will either be indicated per class:
-
-```java
-// Not necessary for lab1.
-public class Insert implements DbIterator {
-```
-
-or per method:
-
-```java
-public boolean deleteTuple(Tuple t) throws DbException {
-    // some code goes here
-    // not necessary for lab1
-    return false;
-}
-```
-
-The code that you submit should compile without having to modify these methods.
-
-We suggest exercises along this document to guide your implementation, but you may find that a different order makes more sense for you. Here's a rough outline of one way you might proceed with your SimpleDB implementation:
-
-*   Implement the classes to manage tuples, namely `Tuple`, `TupleDesc`. We have already implemented `Field`, `IntField`, `StringField`, and `Type` for you. Since you only need to support integer and (fixed length) string fields and fixed length tuples, these are straightforward.
-*   Implement the `Catalog` (this should be very simple).
-*   Implement the `BufferPool` constructor and the `getPage()` method.
-*   Implement the access methods, `HeapPage` and `HeapFile` and associated ID classes. A good portion of these files has already been written for you.
-*   Implement the operator `SeqScan`.
-*   At this point, you should be able to pass the `ScanTest` system test, which is the goal for this lab.
-
-    Section 2 below walks you through these implementation steps and the unit tests corresponding to each one in more detail.
-
-### 1.8\. Transactions, locking, and recovery
-
-As you look through the interfaces we have provided you, you will see a number of references to locking, transactions, and recovery. You do not need to support these features in this lab, but you should keep these parameters in the interfaces of your code because you will be implementing transactions and locking in a future lab. The test code we have provided you with generates a fake transaction ID that is passed into the operators of the query it runs; you should pass this transaction ID into other operators and the buffer pool.
+Finally, you might notice that the iterators in this lab extend the `Operator` class instead of implementing the DbIterator interface. Because the implementation of `next`/`hasNext` is often repetitive, annoying, and error-prone, `Operator` implements this logic generically, and only requires that you implement a simpler `readNext`. Feel free to use this style of implementation, or just implement the `DbIterator` interface if you prefer. To implement the `DbIterator` interface, remove `extends Operator` from iterator classes, and in its place put `implements DbIterator`.
 
 ## 2\. SimpleDB Architecture and Implementation Guide
 
-SimpleDB consists of:
+### 2.1\. Filter and Join
 
-*   Classes that represent fields, tuples, and tuple schemas;
-*   Classes that apply predicates and conditions to tuples;
-*   One or more access methods (e.g., heap files) that store relations on disk and provide a way to iterate through tuples of those relations;
-*   A collection of operator classes (e.g., select, join, insert, delete, etc.) that process tuples;
-*   A buffer pool that caches active tuples and pages in memory and handles concurrency control and transactions (neither of which you need to worry about for this lab); and,
-*   A catalog that stores information about available tables and their schemas.
+Recall that SimpleDB DbIterator classes implement the operations of the relational algebra. You will now implement two operators that will enable you to perform queries that are slightly more interesting than a table scan.
 
-SimpleDB does not include many things that you may think of as being a part of a "database." In particular, SimpleDB does not have:
+*   `Filter`: This operator only returns tuples that satisfy a `Predicate` that is specified as part of its constructor. Hence, it filters out any tuples that do not match the predicate.
+*   `Join`: This operator joins tuples from its two children according to a `JoinPredicate` that is passed in as part of its constructor. We only require a simple nested loops join, but you may explore more interesting join implementations. Describe your implementation in your lab writeup.
 
-*   (In this lab), a SQL front end or parser that allows you to type queries directly into SimpleDB. Instead, queries are built up by chaining a set of operators together into a hand-built query plan (see [Section 2.7](#query_walkthrough)). We will provide a simple parser for use in later labs.
-*   Views.
-*   Data types except integers and fixed length strings.
-*   (In this lab) Query optimizer.
-*   Indices.
+#### Exercise 1. Implement the skeleton methods in:
 
-In the rest of this Section, we describe each of the main components of SimpleDB that you will need to implement in this lab. You should use the exercises in this discussion to guide your implementation. This document is by no means a complete specification for SimpleDB; you will need to make decisions about how to design and implement various parts of the system. Note that for Lab 1 you do not need to implement any operators (e.g., select, join, project) except sequential scan. You will add support for additional operators in future labs.
+*   `src/simpledb/Predicate.java`
+*   `src/simpledb/JoinPredicate.java`
+*   `src/simpledb/Filter.java`
+*   `src/simpledb/Join.java`
 
-You may also wish to consult the [JavaDoc](https://courses.cs.washington.edu/courses/cse444/16sp/labs/lab1/javadoc/) for SimpleDB.
+At this point, your code should pass the unit tests in `PredicateTest`, `JoinPredicateTest`, `FilterTest`, and `JoinTest`. Furthermore, you should be able to pass the system tests `FilterTest` and `JoinTest`.
 
-### 2.1\. The Database Class
+### 2.2\. Aggregates
 
-The Database class provides access to a collection of static objects that are the global state of the database. In particular, this includes methods to access the catalog (the list of all the tables in the database), the buffer pool (the collection of database file pages that are currently resident in memory), and the log file. You will not need to worry about the log file in this lab. We have implemented the Database class for you. You should take a look at this file as you will need to access these objects.
+An additional SimpleDB operator implements basic SQL aggregates with a `GROUP BY` clause. You should implement the five SQL aggregates (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) and support grouping. You only need to support aggregates over a single field, and grouping by a single field.
 
-### 2.2\. Fields and Tuples
+In order to calculate aggregates, we use an `Aggregator` interface which merges a new tuple into the existing calculation of an aggregate. The `Aggregator` is told during construction what operation it should use for aggregation. Subsequently, the client code should call `Aggregator.mergeTupleIntoGroup()` for every tuple in the child iterator. After all tuples have been merged, the client can retrieve a `DbIterator` of aggregation results. Each tuple in the result is a pair of the form `(groupValue, aggregateValue)`, unless the value of the group by field was `Aggregator.NO_GROUPING`, in which case the result is a single tuple of the form `(aggregateValue)`.
 
-Tuples in SimpleDB are quite basic. They consist of a collection of `Field` objects, one per field in the `Tuple`. `Field` is an interface that different data types (e.g., integer, string) implement. `Tuple` objects are created by the underlying access methods (e.g., heap files, or B-trees), as described in the next section. Tuples also have a type (or schema), called a _tuple descriptor_, represented by a `TupleDesc` object. This object consists of a collection of `Type` objects, one per field in the tuple, each of which describes the type of the corresponding field.
+Note that this implementation requires space linear in the number of distinct groups. For the purposes of this lab, you do not need to worry about the situation where the number of groups exceeds available memory.
 
-**Exercise 1.** Implement the skeleton methods in:
+#### Exercise 2. Implement the skeleton methods in:
 
-*   `src/java/simpledb/TupleDesc.java`
-*   `src/java/simpledb/Tuple.java`
+*   `src/simpledb/IntegerAggregator.java`
+*   `src/simpledb/StringAggregator.java`
+*   `src/simpledb/Aggregate.java`
 
-At this point, your code should pass the unit tests TupleTest and TupleDescTest. At this point, modifyRecordId() should fail because you havn't implemented it yet.
+At this point, your code should pass the unit tests IntegerAggregatorTest, StringAggregatorTest, and AggregateTest. Furthermore, you should be able to pass the AggregateTest system test.
 
-### Checkpoint -- End of Part 1
+### End of Part 1
+---
 
-For this part of the lab, please push your
-implementation of `TupleDesc.java` and `Tuple.java`.
-You may do this by executing the bash script `turnInLab.sh` with the tag *lab1-part1*
- (see the end of
-the assignment for detailed submission instructions) as follows:
+### 2.3\. HeapFile Mutability
 
-```sh
-$ turnInLab.sh lab1-part1
+Now, we will begin to implement methods to support modifying tables. We begin at the level of individual pages and files. There are two main sets of operations: adding tuples and removing tuples.
+
+#### Removing tuples:
+To remove a tuple, you will need to implement `deleteTuple`. Tuples contain `RecordID`s which allow you to find the page they reside on, so this should be as simple as locating the page a tuple belongs to and modifying the headers of the page appropriately.
+
+#### Adding tuples:
+
+The `insertTuple` method in `HeapFile.java` is responsible for adding a tuple to a heap file. To add a new tuple to a heap file, you will have to find a page with an empty slot. If no such pages exist in the heap file, you need to create a new page and append it to the physical file on disk. You will need to ensure that the `RecordID` in the tuple is updated correctly.
+
+#### Exercise 3. Implement the remaining skeleton methods in:
+
+*   `src/simpledb/HeapPage.java`
+*   `src/simpledb/HeapFile.java`
+    (Note that you do not necessarily need to implement writePage at this point).
+
+To implement `HeapPage`, you will need to modify the header bitmap for methods such as `insertTuple()` and `deleteTuple()`. You may find that the `getNumEmptySlots()` and `isSlotUsed()` methods we asked you to implement in Lab 1 serve as useful abstractions. Note that there is a `markSlotUsed` method provided as an abstraction to modify the filled or cleared status of a tuple in the page header.
+
+**Note**: it is important that the `HeapFile.insertTuple()` and `HeapFile.deleteTuple()` methods access pages using the `BufferPool.getPage()` method; otherwise, your implementation of transactions in the next lab will not work properly.
+
+Next, implement the following skeleton methods in `src/simpledb/BufferPool.java`:
+
+*   `insertTuple()`
+*   `deleteTuple()`
+
+These methods should call the appropriate methods in the `HeapFile` that belong to the table being modified (this extra level of indirection is needed to support other types of files — like indices — in the future).
+
+At this point, your code should pass the unit tests in `HeapPageWriteTest` and `HeapFileWriteTest`. We have not provided additional unit tests for `HeapFile.deleteTuple()` or `BufferPool`.
+
+### 2.4\. Insertion and deletion
+
+Now that you have written all of the `HeapFile` machinery to add and remove tuples, you will implement the `Insert` and `Delete` operators.
+
+For plans that implement `insert` and `delete` queries, the top-most operator is a special `Insert` or `Delete` operator that modifies the pages on disk. These operators return the number of affected tuples. This is implemented by returning a single tuple with one integer field, containing the count of affected records.
+
+*   `Insert`: This operator adds the tuples it reads from its child operator to the `tableid` specified in its constructor. It should use the `BufferPool.insertTuple()` method to do this.
+*   `Delete`: This operator deletes the tuples it reads from its child operator from the `tableid` specified in its constructor. It should use the `BufferPool.deleteTuple()` method to do this.
+
+#### Exercise 4. Implement the skeleton methods in:
+
+*   `src/simpledb/Insert.java`
+*   `src/simpledb/Delete.java`
+
+At this point, your code should pass the unit tests in InsertTest. We have not provided unit tests for `Delete`. Furthermore, you should be able to pass the `InsertTest` and `DeleteTest` system tests.
+
+### 2.5\. Page eviction
+
+In Lab 1, we did not correctly observe the limit on the maximum number of pages in the buffer pool defined by the constructor argument `numPages`. To address this shortcoming, you will choose a page eviction policy and instrument any previous code that reads or creates pages to implement your policy.
+
+When more than `numPages` pages are in the buffer pool, one page should be evicted from the pool before the next is loaded. The choice of eviction policy is up to you; it is not necessary to do something sophisticated. Describe your policy in the lab writeup.
+
+Notice that `BufferPool` asks you to implement a `flushAllPages()` method. This is not something you would ever need in a real implementation of a buffer pool. However, we need this method for testing purposes. You should never call this method from any real code. Because of the way we have implemented `ScanTest.cacheTest`, you will need to ensure that your `flushPage` and `flushAllPages` methods do not evict pages from the buffer pool to properly pass this test. The `flushAllPages` method should call `flushPage` on all pages in the buffer pool, and `flushPage` should (i) write any dirty page to disk, (ii) mark written pages as being not dirty, and (iii) leave written pages in the BufferPool. The only method which should remove page from the buffer pool is `evictPage`, which should call `flushPage` on any dirty page it evicts.
+
+#### Exercise 5. Fill in the `flushPage()` method and additional helper methods to implement page eviction in:
+
+*   `src/simpledb/BufferPool.java`
+
+If you did not implement `writePage()` in `HeapFile.java` above, you will also need to do that here. *For part 1 of this lab, you do not need to implement `writePage()`.*
+
+At this point, your code should pass the `EvictionTest` system test.
+
+Since we will not be checking for any particular eviction policy, this test works by creating a buffer pool with 16 pages (NOTE: while DEFAULT_PAGES is 50, we are initializing the BufferPool with less!), scanning a file with many more than 16 pages, and seeing if the memory usage of the JVM increases by more than 5 MB. If you do not implement an eviction policy correctly, you will not evict enough pages, and will go over the size limitation, thus failing the test.
+
+You have now completed the code for this lab. Good work!
+
+### 2.6\. Query walkthrough
+
+The following code implements a simple join query between two tables, each consisting of three columns of integers. (The file `some_data_file1.dat` and `some_data_file2.dat` are binary representation of the pages from this file.) This code is equivalent to the SQL statement:
+
+```sql
+SELECT *
+  FROM some_data_file1, some_data_file2
+  WHERE some_data_file1.field1 = some_data_file2.field1
+  AND some_data_file1.id > 1
 ```
 
-Submitting the first
-part of lab 1 on time is worth 10% of your final grade for lab 1
-and will be graded all-or-nothing. We will NOT run any of the unit
-tests. We will just visually inspect that you submitted something
-reasonably complete.
-
-After executing the `turnInLab.sh` script, make sure to check your repository on GitLab to ensure that the tag has been property applied!  You may do this by visiting `https://gitlab.cs.washington.edu/cse444-16sp/simple-db-YOUR_USERNAME/tags`.
-
-### 2.3\. Catalog
-
-The catalog (class `Catalog` in SimpleDB) consists of a list of the tables and schemas of the tables that are currently in the database. You will need to support the ability to add a new table, as well as getting information about a particular table. Associated with each table is a `TupleDesc` object that allows operators to determine the types and number of fields in a table.
-
-The global catalog is a single instance of `Catalog` that is allocated for the entire SimpleDB process. The global catalog can be retrieved via the method `Database.getCatalog()`, and the same goes for the global buffer pool (using `Database.getBufferPool()`).
-
-**Exercise 2.** Implement the skeleton methods in:
-
-*   `src/java/simpledb/Catalog.java`
-
-At this point, your code should pass the unit tests in CatalogTest.
-
-### 2.4\. BufferPool
-
-The buffer pool (class `BufferPool` in SimpleDB) is responsible for caching pages in memory that have been recently read from disk. All operators read and write pages from various files on disk through the buffer pool. It consists of a fixed number of pages, defined by the `numPages` parameter to the `BufferPool` constructor. In later labs, you will implement an eviction policy. For this lab, you only need to implement the constructor and the `BufferPool.getPage()` method used by the SeqScan operator. The BufferPool should store up to `numPages` pages. For this lab, if more than `numPages` requests are made for different pages, then instead of implementing an eviction policy, you may throw a DbException. In future labs you will be required to implement an eviction policy.
-
-The `Database` class provides a static method, `Database.getBufferPool()`, that returns a reference to the single BufferPool instance for the entire SimpleDB process.
-
-**Exercise 3.** Implement the `getPage()` method in:
-
-*   `src/java/simpledb/BufferPool.java`
-
-We have not provided unit tests for BufferPool. The functionality you implemented will be tested in the implementation of HeapFile below. You should use the `DbFile.readPage` method to access pages of a DbFile.
-
-### 2.5\. HeapFile access method
-
-Access methods provide a way to read or write data from disk that is arranged in a specific way. Common access methods include heap files (unsorted files of tuples) and B-trees; for this assignment, you will only implement a heap file access method, and we have written some of the code for you.
-
-A `HeapFile` object is arranged into a set of pages, each of which consists of a fixed number of bytes for storing tuples, (defined by the constant `BufferPool.PAGE_SIZE`), including a header. In SimpleDB, there is one `HeapFile` object for each table in the database. Each page in a `HeapFile` is arranged as a set of slots, each of which can hold one tuple (tuples for a given table in SimpleDB are all of the same size). In addition to these slots, each page has a header that consists of a bitmap with one bit per tuple slot. If the bit corresponding to a particular tuple is 1, it indicates that the tuple is valid; if it is 0, the tuple is invalid (e.g., has been deleted or was never initialized.) Pages of `HeapFile` objects are of type `HeapPage` which implements the `Page` interface. Pages are stored in the buffer pool but are read and written by the `HeapFile` class.
-
-SimpleDB stores heap files on disk in more or less the same format they are stored in memory. Each file consists of page data arranged consecutively on disk. Each page consists of one or more bytes representing the header, followed by the `BufferPool.PAGE_SIZE - # header bytes` bytes of actual page content. Each tuple requires _tuple size_ * 8 bits for its content and 1 bit for the header. Thus, the number of tuples that can fit in a single page is:
-
-`tupsPerPage = floor((BufferPool.PAGE_SIZE * 8) / (_tuple size_ * 8 + 1))`
-
-Where _tuple size_ is the size of a tuple in the page in bytes. The idea here is that each tuple requires one additional bit of storage in the header. We compute the number of bits in a page (by mulitplying `PAGE_SIZE` by 8), and divide this quantity by the number of bits in a tuple (including this extra header bit) to get the number of tuples per page. The floor operation rounds down to the nearest integer number of tuples (we don't want to store partial tuples on a page!)
-
-Once we know the number of tuples per page, the number of bytes required to store the header is simply:
-
-`headerBytes = ceiling(tupsPerPage/8)`
-
-The ceiling operation rounds up to the nearest integer number of bytes (we never store less than a full byte of header information.)
-
-The low (least significant) bits of each byte represents the status of the slots that are earlier in the file. Hence, the lowest bit of the first byte represents whether or not the first slot in the page is in use. Also, note that the high-order bits of the last byte may not correspond to a slot that is actually in the file, since the number of slots may not be a multiple of 8\. Also note that all Java virtual machines are [big-endian](http://en.wikipedia.org/wiki/Endianness).
-
-**Exercise 4.** Implement the skeleton methods in:
-
-*   `src/java/simpledb/HeapPageId.java`
-*   `src/java/simpledb/RecordId.java`
-*   `src/java/simpledb/HeapPage.java`
-
-Although you will not use them directly in Lab 1, we ask you to implement `getNumEmptySlots()` and `isSlotUsed()` in HeapPage. These require pushing around bits in the page header. You may find it helpful to look at the other methods that have been provided in HeapPage or in `src/java/simpledb/HeapFileEncoder.java` to understand the layout of pages.
-
-You will also need to implement an Iterator over the tuples in the page, which may involve an auxiliary class or data structure.
-
-At this point, your code should pass the unit tests in HeapPageIdTest, RecordIdTest, and HeapPageReadTest.
-
-After you have implemented `HeapPage`, you will write methods for `HeapFile` in this lab to calculate the number of pages in a file and to read a page from the file. You will then be able to fetch tuples from a file stored on disk.
-
-**Exercise 5.** Implement the skeleton methods in:
-
-*   `src/java/simpledb/HeapFile.java`
-
-To read a page from disk, you will first need to calculate the correct offset in the file. Hint: you will need random access to the file in order to read and write pages at arbitrary offsets. You should not call BufferPool methods when reading a page from disk.
-
-You will also need to implement the `HeapFile.iterator()` method, which should iterate through the tuples of each page in the HeapFile. The iterator must use the `BufferPool.getPage()` method to access pages in the `HeapFile`. This method loads the page into the buffer pool and will eventually be used (in a later lab) to implement locking-based concurrency control and recovery. Do not load the entire table into memory on the open() call -- this will cause an out of memory error for very large tables.
-
-At this point, your code should pass the unit tests in HeapFileReadTest.
-
-
-### 2.6\. Operators
-
-Operators are responsible for the actual execution of the query plan. They implement the operations of the relational algebra. In SimpleDB, operators are iterator based; each operator implements the `DbIterator` interface.
-
-Operators are connected together into a plan by passing lower-level operators into the constructors of higher-level operators, i.e., by 'chaining them together.' Special access method operators at the leaves of the plan are responsible for reading data from the disk (and hence do not have any operators below them).
-
-At the top of the plan, the program interacting with SimpleDB simply calls `getNext` on the root operator; this operator then calls `getNext` on its children, and so on, until these leaf operators are called. They fetch tuples from disk and pass them up the tree (as return arguments to `getNext`); tuples propagate up the plan in this way until they are output at the root or combined or rejected by another operator in the plan.
-
-For this lab, you will only need to implement one SimpleDB operator.
-
-**Exercise 6.** Implement the skeleton methods in:
-
-*   `src/java/simpledb/SeqScan.java`
-
-This operator sequentially scans all of the tuples from the pages of the table specified by the `tableid` in the constructor. This operator should access tuples through the `DbFile.iterator()` method.
-
-At this point, you should be able to complete the ScanTest system test. Good work!
-
-You will fill in other operators in subsequent labs.
-
-### 2.7. A simple query [query_walkthrough]
-
-The purpose of this section is to illustrate how these various components are connected together to process a simple query. Suppose you have a data file, "some_data_file.txt", with the following contents:
-
-```
-1,1,1
-2,2,2
-3,4,4
-```
-
-You can convert this into a binary file that SimpleDB can query as follows:
-
-```sh
-$ java -jar dist/simpledb.jar convert some_data_file.txt 3
-```
-
-Here, the argument "3" tells conver that the input has 3 columns.
-
-The following code implements a simple selection query over this file. This code is equivalent to the SQL statement `SELECT * FROM some_data_file`.
+For more extensive examples of query operations, you may find it helpful to browse the unit tests for joins, filters, and aggregates.
 
 ```java
 package simpledb;
 import java.io.*;
 
-public class test {
+public class jointest {
 
     public static void main(String[] argv) {
-
         // construct a 3-column table schema
         Type types[] = new Type[]{ Type.INT_TYPE, Type.INT_TYPE, Type.INT_TYPE };
         String names[] = new String[]{ "field0", "field1", "field2" };
-        TupleDesc descriptor = new TupleDesc(types, names);
 
-        // create the table, associate it with some_data_file.dat
-        // and tell the catalog about the schema of this table.
-        HeapFile table1 = new HeapFile(new File("some_data_file.dat"), descriptor);
-        Database.getCatalog().addTable(table1, "test");
+        TupleDesc td = new TupleDesc(types, names);
 
-        // construct the query: we use a simple SeqScan, which spoonfeeds
-        // tuples via its iterator.
+        // create the tables, associate them with the data files
+        // and tell the catalog about the schema  the tables.
+        HeapFile table1 = new HeapFile(new File("some_data_file1.dat"), td);
+        Database.getCatalog().addTable(table1, "t1");
+
+        HeapFile table2 = new HeapFile(new File("some_data_file2.dat"), td);
+        Database.getCatalog().addTable(table2, "t2");
+
+        // construct the query: we use two SeqScans, which spoonfeed
+        // tuples via iterators into join
         TransactionId tid = new TransactionId();
-        SeqScan f = new SeqScan(tid, table1.getId());
 
+        SeqScan ss1 = new SeqScan(tid, table1.getId(), "t1");
+        SeqScan ss2 = new SeqScan(tid, table2.getId(), "t2");
+
+        // create a filter for the where condition
+        Filter sf1 = new Filter(
+                                new Predicate(0,
+                                Predicate.Op.GREATER_THAN, new IntField(1)),  ss1);
+
+        JoinPredicate p = new JoinPredicate(1, Predicate.Op.EQUALS, 1);
+        Join j = new Join(p, sf1, ss2);
+
+        // and run it
         try {
-            // and run it
-            f.open();
-            while (f.hasNext()) {
-                Tuple tup = f.next();
+            j.open();
+            while (j.hasNext()) {
+                Tuple tup = j.next();
                 System.out.println(tup);
             }
-            f.close();
+            j.close();
             Database.getBufferPool().transactionComplete(tid);
+
         } catch (Exception e) {
-            System.out.println ("Exception : " + e);
+            e.printStackTrace();
         }
+
     }
 
 }
 ```
 
-The table we create has three integer fields. To express this, we create a `TupleDesc` object and pass it an array of `Type` objects, and optionally an array of `String` field names. Once we have created this `TupleDesc`, we initialize a `HeapFile` object representing the table stored in `some_data_file.dat`. Once we have created the table, we add it to the catalog. If this were a database server that was already running, we would have this catalog information loaded. We need to load it explicitly to make this code self-contained.
+Both tables have three integer fields. To express this, we create a `TupleDesc` object and pass it an array of `Type` objects indicating field types and `String` objects indicating field names. Once we have created this `TupleDesc`, we initialize two `HeapFile` objects representing the tables. Once we have created the tables, we add them to the catalog. (If this were a database server that was already running, we would have this catalog information loaded; we need to load this only for the purposes of this test.)
 
-Once we have finished initializing the database system, we create a query plan. Our plan consists only of the `SeqScan` operator that scans the tuples from disk. In general, these operators are instantiated with references to the appropriate table (in the case of `SeqScan`) or child operator (in the case of e.g. Filter). The test program then repeatedly calls `hasNext` and `next` on the `SeqScan` operator. As tuples are output from the `SeqScan`, they are printed out on the command line.
+Once we have finished initializing the database system, we create a query plan. Our plan consists of two `SeqScan` operators that scan the tuples from each file on disk, connected to a `Filter` operator on the first `HeapFile` instance, connected to a `Join` operator that joins the tuples in the tables according to the `JoinPredicate`. In general, these operators are instantiated with references to the appropriate table (in the case of `SeqScan`) or child operator (in the case of e.g., `Join`). The test program then repeatedly calls `next` on the `Join` operator, which in turn pulls tuples from its children. As tuples are output from the `Join`, they are printed out on the command line.
 
-We **strongly recommend** you try this out as a fun end-to-end test that will help you get experience writing your own test programs for simpledb. You should create the file `test.java` in the `src/java/simpledb` directory with the code above, and place the `some_data_file.dat` file in the top level directory. Then run:
+### 2.7\. Query Parser and Contest
 
-```sh
-$ ant
-$ java -classpath dist/simpledb.jar simpledb.test
+We've provided you with a query parser for SimpleDB that you can use to write and run SQL queries against your database once you have completed the exercises in this lab.
+
+The first step is to create some data tables and a catalog. Suppose you have a file `data.txt` with the following contents:
+
+```
+1,10
+2,20
+3,30
+4,40
+5,50
+5,50
 ```
 
-Note that `ant` compiles `test.java` and generates a new jarfile that contains it.
+You can convert this into a SimpleDB table using the `convert` command (make sure to run `ant` first!):
+
+```sh
+$ java -jar dist/simpledb.jar convert data.txt 2 "int,int"
+```
+
+This creates a file `data.dat`. In addition to the table's raw data, the two additional parameters specify that each record has two fields and that their types are `int` and `int`.
+
+Next, create a catalog file, `catalog.txt`, with the following contents:
+
+```sql
+data (f1 int, f2 int)
+```
+
+This tells SimpleDB that there is one table, `data` (stored in `data.dat`) with two integer fields named `f1` and `f2`.
+
+Finally, invoke the parser. You must run java from the command line (ant doesn't work properly with interactive targets.) From your repository directory, execute:
+
+```sh
+$ java -jar dist/simpledb.jar parser catalog.txt
+```
+
+You should see output like:
+
+```sh
+Added table : data with schema INT(f1), INT(f2),
+SimpleDB>
+```
+
+Finally, you can run a query:
+
+```sql
+SimpleDB> select d.f1, d.f2 from data d;
+Started a new transaction tid = 1221852405823
+ ADDING TABLE d(data) TO tableMap
+     TABLE HAS  tupleDesc INT(d.f1), INT(d.f2),
+1       10
+2       20
+3       30
+4       40
+5       50
+5       50
+
+ 6 rows.
+----------------
+0.16 seconds
+
+SimpleDB>
+```
+
+The parser is relatively full featured (including support for SELECTs, INSERTs, DELETEs, and transactions), but does have some problems and does not necessarily report completely informative error messages. Here are some limitations to bear in mind:
+
+*   You must preface every field name with its table name, even if the field name is unique (you can use table name aliases, as in the example above, but you cannot use the `AS` keyword.)
+*   Nested queries are supported in the `WHERE` clause, but not the `FROM` clause.
+*   No arithmetic expressions are supported (for example, you can't take the sum of two fields.)
+*   At most one `GROUP BY` and one aggregate column are allowed.
+*   Set-oriented operators like `IN`, `UNION`, and `EXCEPT` are not allowed.
+*   Only `AND` expressions in the `WHERE` clause are allowed.
+*   `UPDATE` expressions are not supported.
+*   The string operator LIKE is allowed, but must be written out fully (that is, the Postgres tilde [~] shorthand is not allowed.)
+
+#### Exercise 7
+
+We have built a SimpleDB-encoded version of the DBLP database; the needed files are located at [http://www.cs.washington.edu/education/courses/cse444/16sp/labs/lab2/dblp_data.tar.gz](http://www.cs.washington.edu/education/courses/cse444/16sp/labs/lab2/dblp_data.tar.gz).
+
+You should download the file and unpack it. It will create four files in the `dblp_data` directory. Move them into your repository directory. The following commands will acomplish this, if you execute them at the root of your repository:
+
+```sh
+$ wget http://www.cs.washington.edu/education/courses/cse444/16sp/labs/lab2/dblp_data.tar.gz
+$ tar xvzf dblp_data.tar.gz
+$ mv dblp_data/* .
+$ rm -r dblp_data.tar.gz dblp_data
+```
+
+You can then run the parser with the following command. Make sure to first compile (i.e., run `ant dist`):
+
+```sh
+$ java -jar dist/simpledb.jar parser dblp_simpledb.schema
+```
+
+Execute the three queries below using your SimpleDB prototype and report the times in your lab write-up.
+
+#### Query 1
+```sql
+SELECT p.title
+    FROM papers p
+    WHERE p.title LIKE 'selectivity';
+```
+
+#### Query 2
+```sql
+SELECT p.title, v.name
+    FROM papers p, authors a, paperauths pa, venues v
+    WHERE a.name = 'E. F. Codd'
+    AND pa.authorid = a.id
+    AND pa.paperid = p.id
+    AND p.venueid = v.id;
+```
+
+#### Query 3
+```sql
+SELECT a2.name, count(p.id)
+    FROM papers p, authors a1, authors a2, paperauths pa1, paperauths pa2
+    WHERE a1.name = 'Michael Stonebraker'
+    AND pa1.authorid = a1.id
+    AND pa1.paperid = p.id
+    AND pa2.authorid = a2.id
+    AND pa1.paperid = pa2.paperid
+    GROUP BY a2.name
+    ORDER BY a2.name;
+```
+
+Note that each query will print out its runtime after it executes.
+
+
+#### Contest (Optional)
+
+We will start a thread on the course message board inviting anyone interested to post their runtimes for the above three queries (please run the queries on a lab machine and indicate which one you used so it becomes easier to compare runtimes). The contest is just for fun. It will not affect your grade.
+
+You may wish to create optimized implementations of some of the operators; in particular, a fast join operator (e.g., not nested loops!) will be essential for good performance on queries two and three.
+
+There is currently no optimizer in the parser, so the queries above have been written to cause the parser to generate reasonable plans. Here are some helpful hints about how the parser works that you may wish to exploit while running these queries:
+
+*   The table on the left side of the joins in these queries is passed in as the first `DbIterator` parameter to `Join`.
+*   Expressions in the `WHERE` clause are added to the plan from top to bottom, such that first expression will be the bottom-most operator in the generated query plan. For example, the generated plan for query 2 is:
+
+```sql
+Project(Join(Join(Filter(a),pa),p))
+```
+
+We ran our reference implementation on the `attu-3` node and obtained the following initial runtimes: Query 1 in 0.87 seconds, Query 2 in 3.7 seconds, and Query 3 in 13.29 seconds. We implemented a special-purpose join operator for equality joins but did little else to optimize performance.
 
 ## 3\. Logistics
 
 You must submit your code (see below) as well as a short (2 pages, maximum) writeup describing your approach. This writeup should:
 
-*   In your own words, describe what Lab1 was about: Describe the various components that
+* In your own words, describe what this lab was about: Describe the various components that
     you implemented and how they work. This part needs to
     **demonstrate your understanding** of the lab! If your description
     looks like a copy paste of the instructions or a copy-paste of the
     provided documentation you will lose points.
-*   Describe any design decisions you made. These may be minimal for
-Lab 1.
-*   Give one example of a unit test that could be added to improve the
+* Describe any design decisions you made, including your choice of page eviction policy. If you used something other than a nested-loops join, describe the tradeoffs of the algorithm you chose.
+*	Give one example of a unit test that could be added to improve the
     set of unit tests that we provided for this lab.
-*   Discuss and justify any changes you made to the API. You really
-    should not change the API. If you plan to make a change, ask the
-    TAs first.
+*   Discuss and justify any changes you made to the API.
 *   Describe any missing or incomplete elements of your code.
 *   Describe how long you spent on the lab, and whether there was anything you found particularly difficult or confusing.
 
@@ -604,12 +406,15 @@ All CSE 444 labs are to be completed **INDIVIDUALLY**! However, you may discuss 
 
 ### 3.2\. Submitting your assignment
 
-You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab1-answers.txt` or `lab1-answers.pdf` in the top level of your repository.
+You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab2-answers.txt` or `lab2-answers.pdf` in the top level of your repository.
+
+##### Please also **submit your runtimes** for the three queries in the contest. While the contest is optional, it is mandatory that your SimpleDB prototype be capable of executing these queries.
+###
 
 **Important**: In order for your write-up to be added to the git repo, you need to explicitly add it:
 
 ```sh
-$ git add lab1-answers.txt
+$ git add lab2-answers.txt
 ```
 
 You also need to explicitly add any other files you create, such as new `*.java` files.
@@ -621,63 +426,52 @@ The criteria for your lab being submitted on time is that your code must be tagg
 There is a bash script `turnInLab.sh` in the root level directory of your repository that commits your changes, deletes any prior tag for the current lab, tags the current commit, and pushes the branch and tag to GitLab. If you are using Linux or Mac OSX, you should be able to run the following:
 
 ```sh
-$ ./turnInLab.sh lab1
+$ ./turnInLab.sh lab2
 ```
 
 You should see something like the following output:
 
 ```sh
-$ ./turnInLab.sh lab1
-[master b155ba0] Lab 1
+$ ./turnInLab.sh lab2
+[master b155ba0] Lab 2
  1 file changed, 1 insertion(+)
-Deleted tag 'lab1' (was b26abd0)
-To git@gitlab.com:cse444-16sp/hw-answers-pirateninja.git
- - [deleted]         lab1
+Deleted tag 'lab2' (was b26abd0)
+To git@gitlab.com:cse444-16sp/simple-db-pirateninja.git
+ - [deleted]         lab2
 Counting objects: 11, done.
 Delta compression using up to 4 threads.
 Compressing objects: 100% (4/4), done.
 Writing objects: 100% (6/6), 448 bytes | 0 bytes/s, done.
 Total 6 (delta 3), reused 0 (delta 0)
-To git@gitlab.com:cse444-16sp/hw-answers-pirateninja.git
+To git@gitlab.com:cse444-16sp/simple-db-pirateninja.git
    ae31bce..b155ba0  master -> master
 Counting objects: 1, done.
 Writing objects: 100% (1/1), 152 bytes | 0 bytes/s, done.
 Total 1 (delta 0), reused 0 (delta 0)
-To git@gitlab.com:cse444-16sp/hw-answers-pirateninja.git
- * [new tag]         lab1 -> lab1
-```
-
-#### Final Word of Caution!
-
-Git is a distributed version control system. This means everything operates offline until you run `git pull` or `git push`. This is a great feature.
-
-The bad thing is that you may **forget to `git push` your changes**. This is why we strongly, strongly suggest that you **check GitLab to be sure that what you want us to see matches up with what you expect**.  As a second sanity check, you can re-clone your repository in a different directory to confirm the changes:
-
-```sh
-$ git clone git@gitlab.cs.washington.edu:cse444-16sp/simple-db-username.git confirmation_directory
-$ cd confirmation_directory
-$ # ... make sure everything is as you expect ...
+To git@gitlab.com:cse444-16sp/hsimple-db-pirateninja.git
+ * [new tag]         lab2 -> lab2
 ```
 
 ### 3.3\. Submitting a bug
 
-Please submit (friendly!) bug reports by emailing the course staff. When you do, please try to include:
+SimpleDB is a relatively complex piece of code. It is very possible you are going to find bugs, inconsistencies, and bad, outdated, or incorrect documentation, etc.
+
+We ask you, therefore, to do this lab with an adventurous mindset. Don't get mad if something is not clear, or even wrong; rather, try to figure it out yourself or send us a friendly email. Please submit (friendly!) bug reports to the course staff. When you do, please try to include:
 
 *   A description of the bug.
 *   A `.java` file we can drop in the `test/simpledb` directory, compile, and run.
 *   A `.txt` file with the data that reproduces the bug. We should be able to convert it to a `.dat` file using `HeapFileEncoder`.
 
-If you are the first person to report a particular bug in the code, we will give you a candy bar!
+You can also post on the class message boardif you feel you have run into a bug.
 
 ### 3.4 Grading
 
-10% of your grade is for completing Part 1 of this lab in time.
+50% of your grade will be based on whether or not your code passes the system test suite we will run over it. These tests will be a superset of the tests we have provided. Before handing in your code, you should make sure it produces no errors (passes all of the tests) from both `ant test` and `ant systemtest`.
 
-75% of your grade will be based on whether or not your code passes the system test suite we will run over it. These tests will be a superset of the tests we have provided. Before handing in your code, you should make sure it produces no errors (passes all of the tests) from both `ant test` and `ant systemtest`.
-
-**Important:** before testing, we will replace your `build.xml` and the entire contents of the `test` directory with our version of these files. This means you cannot change the format of `.dat` files! You should also be careful changing our APIs.  You should also verify that your tests are succeeding on the CI server by checking the GitLab website. You should test that your code compiles the unmodified tests. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
+**Important:** before testing, we will replace your `build.xml`, `HeapFileEncoder.java`, and the entire contents of the `test/` directory with our version of these files! This means you cannot change the format of `.dat` files! You should therefore be careful changing our APIs. This also means you need to test whether your code compiles with our test programs. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
 
 ```sh
+$ git clone git@gitlab.com:cse444-16sp/simple-db-yourname
 $ # [replace build.xml and test]
 $ git checkout -- build.xml test\
 $ ant test
@@ -687,6 +481,6 @@ $ # [additional tests]
 
 If any of these commands fail, we'll be unhappy, and, therefore, so will your grade.
 
-An additional 15% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
+An additional 50% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
 
 We've had a lot of fun designing this assignment, and we hope you enjoy hacking on it!
