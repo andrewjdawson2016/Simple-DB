@@ -10,7 +10,7 @@ public class DbHeapFileIterator extends AbstractDbFileIterator {
 	private int currentPageNumber;
 	
 	/**
-	 * The tableid of the table this iterator is going over
+	 * The tableid of the table this iterator is going over.
 	 */
 	private int tableid;
 	
