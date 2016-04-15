@@ -1,10 +1,7 @@
 package simpledb;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,8 +16,10 @@ public class StringAggregator implements Aggregator {
     private Type gbfieldtype;
     private int afield;
     private Op what;
-    private Map<Field, List<Tuple>> aggMap;
-    private List<Tuple> aggValue;
+    private Map<Field, Integer> aggregatorGroups;
+    private Integer aggregatorNoGroups;
+    private String gbColName;
+    private String aggColName;
     
     /**
      * Aggregate constructor
@@ -40,8 +39,10 @@ public class StringAggregator implements Aggregator {
         this.gbfieldtype = gbfieldtype;
         this.afield = afield;
         this.what = what;
-        this.aggMap = new HashMap<Field, List<Tuple>>();
-        this.aggValue = new ArrayList<Tuple>();
+        this.aggregatorGroups = new HashMap<Field, Integer>();
+        this.aggregatorNoGroups = null;
+        this.gbColName = null;
+        this.aggColName = null;
     }
 
     /**
@@ -50,17 +51,35 @@ public class StringAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         if (this.gbfield == NO_GROUPING) {
-        	this.aggValue.add(tup);
+        	if (this.aggColName == null) {
+        		setAggColName(tup);
+        	}
+        	if (this.aggregatorNoGroups == null) {
+        		this.aggregatorNoGroups = 1;
+        	} else {
+            	this.aggregatorNoGroups = this.aggregatorNoGroups + 1;
+        	}
         } else {
-        	updateAggMap(tup, tup.getField(this.gbfield));
+        	if (this.aggColName == null || this.gbColName == null) {
+        		setAggColName(tup);
+        		setgbColName(tup);
+        	}
+        	Field tupGroupByField = tup.getField(this.gbfield);
+        	if (!this.aggregatorGroups.containsKey(tupGroupByField)) {
+        		this.aggregatorGroups.put(tupGroupByField, 1);
+        	} else {
+        		int currCount = this.aggregatorGroups.get(tupGroupByField);
+        		this.aggregatorGroups.put(tupGroupByField, currCount + 1);
+        	}
         }
     }
     
-    private void updateAggMap(Tuple tup, Field group) {
-    	if (!this.aggMap.containsKey(group)) {
-    		this.aggMap.put(group, new ArrayList<Tuple>());
-    	}
-    	this.aggMap.get(group).add(tup);
+    private void setAggColName(Tuple tup) {
+    	this.aggColName = tup.getTupleDesc().getFieldName(this.afield);
+    }
+    
+    private void setgbColName(Tuple tup) {
+    	this.gbColName = tup.getTupleDesc().getFieldName(this.gbfield);
     }
 
     /**
@@ -73,48 +92,45 @@ public class StringAggregator implements Aggregator {
      */
     public DbIterator iterator() {
     	if (this.gbfield == NO_GROUPING) {
-    		if (this.aggValue.isEmpty()) {
+    		if (this.aggregatorNoGroups == null) {
     			return new TupleIterator(null, new HashSet<Tuple>());
     		}
     		Type[] tdTypes = { Type.INT_TYPE };
-    		String aggerateValName = this.aggValue.get(0).getTupleDesc().getFieldName(this.afield);
-    		String[] names = { aggerateValName };
+    		String[] names = { this.aggColName };
     		TupleDesc td = new TupleDesc(tdTypes, names);
-    		Tuple aggTuple = new Tuple(td);
-    		IntField aggField = new IntField(this.aggValue.size());
-    		aggTuple.setField(0, aggField);
-    		Set<Tuple> resultTuples = new HashSet<Tuple>();
-    		resultTuples.add(aggTuple);
-    		return new TupleIterator(td, resultTuples);
+    		Tuple aggTuple = getNoGroupTuple(this.aggregatorNoGroups, td);
+    		Set<Tuple> iterableTuples = new HashSet<Tuple>();
+    		iterableTuples.add(aggTuple);
+    		return new TupleIterator(td, iterableTuples);
     	} else {
-    		if (this.aggMap.isEmpty()) {
+    		if (this.aggregatorGroups.isEmpty()) {
     			return new TupleIterator(null, new HashSet<Tuple>());
     		}
     		Type[] tdTypes = { this.gbfieldtype, Type.INT_TYPE };
-    		String[] names = getPairColNames();
+    		String[] names = { this.gbColName, this.aggColName };
     		TupleDesc td = new TupleDesc(tdTypes, names);
-    		Set<Tuple> resultTuples = new HashSet<Tuple>();
-    		for (Field group : this.aggMap.keySet()) {
-    			IntField aggField = new IntField(this.aggMap.get(group).size());
-    			Tuple currAggTuple = new Tuple(td);
-    			if (group.getType() == Type.STRING_TYPE) {
-    				currAggTuple.setField(0, (StringField) group);
-    			} else {
-    				currAggTuple.setField(0, (IntField) group);
-    			}
-        		currAggTuple.setField(1, aggField);
-        		resultTuples.add(currAggTuple);
+    		Set<Tuple> iterableTuples = new HashSet<Tuple>();
+    		for (Field group : this.aggregatorGroups.keySet()) {
+    			int groupCount = this.aggregatorGroups.get(group);
+    			Tuple aggTuple = getGroupsTuple(groupCount, td, group);
+    			iterableTuples.add(aggTuple);
     		}
-    		return new TupleIterator(td, resultTuples);
+    		return new TupleIterator(td, iterableTuples);
     	}
     }
     
-    private String[] getPairColNames() {
-    	Iterator<Field> itr = this.aggMap.keySet().iterator();
-    	Tuple randomTuple = this.aggMap.get(itr.next()).get(0);
-    	String[] result = new String[2];
-    	result[0] = randomTuple.getTupleDesc().getFieldName(this.gbfield);
-    	result[1] = randomTuple.getTupleDesc().getFieldName(this.afield);
-    	return result;
+    private Tuple getNoGroupTuple(int count, TupleDesc td) {
+		Tuple aggTuple = new Tuple(td);
+		IntField aggField = new IntField(count);
+		aggTuple.setField(0, aggField);
+		return aggTuple;
+    }
+    
+    private Tuple getGroupsTuple(int count, TupleDesc td, Field group) {
+		Tuple aggTuple = new Tuple(td);
+		aggTuple.setField(0, group);
+		IntField aggField = new IntField(count);
+		aggTuple.setField(1, aggField);
+		return aggTuple;
     }
 }
