@@ -92,6 +92,9 @@ public class IntegerAggregator implements Aggregator {
     		resultTuples.add(aggTuple);
     		return new TupleIterator(td, resultTuples);
     	} else {
+    		if (this.aggMap.isEmpty()) {
+    			return new TupleIterator(null, new HashSet<Tuple>());
+    		}
     		Type[] tdTypes = { this.gbfieldtype, Type.INT_TYPE };
     		String[] names = getPairColNames();
     		TupleDesc td = new TupleDesc(tdTypes, names);
