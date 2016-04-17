@@ -241,8 +241,16 @@ public class HeapPage implements Page {
      * @param t The tuple to delete
      */
     public void deleteTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    	if (t.getRecordId().getPageId() != this.pid) {
+    		throw new DbException("tuple " + t + " does not belong to this page");
+    	}
+    	
+    	int headerIndex = t.getRecordId().tupleno();
+    	if (!isSlotUsed(headerIndex)) {
+    		throw new DbException("tuple " + t + " is already deleted");
+    	}
+    	
+    	markSlotUsed(headerIndex, false);
     }
 
     /**
@@ -255,6 +263,22 @@ public class HeapPage implements Page {
     public void insertTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+    	if (getNumEmptySlots() == 0) {
+    		throw new DbException("there are no empty slots on page " + this.pid);
+    	}
+    	
+    	if (!this.td.equals(t.getTupleDesc())) {
+    		throw new DbException("tuple desc do not match for inserted tuple");
+    	}
+    	
+    	for (int i = 0; i < this.numSlots; i++) {
+    		if (!isSlotUsed(i)) {
+    			RecordId updatedRecordId = new RecordId(this.pid, i);
+    			t.setRecordId(updatedRecordId);
+    			this.tuples[i] = t;
+    			markSlotUsed(i, true);
+    		}
+    	}
     }
 
     /**
@@ -296,7 +320,6 @@ public class HeapPage implements Page {
      * Returns true if associated slot on this page is filled.
      */
     public boolean isSlotUsed(int i) {
-        // some code goes here
         byte headerByte = header[i / 8];
         int bitMask = 1 << (i % 8);
         return (headerByte & bitMask) != 0;
@@ -306,8 +329,17 @@ public class HeapPage implements Page {
      * Abstraction to fill or clear a slot on this page.
      */
     private void markSlotUsed(int i, boolean value) {
-        // some code goes here
-        // not necessary for lab1
+    	int byteIndex = i / 8;
+    	int byteOffSet = i % 8;
+    	byte headerByte = this.header[byteIndex];
+    	if (value) {
+    		byte bitMask = (byte) (1 << byteOffSet);
+    		headerByte = (byte) (headerByte | bitMask);
+    	} else {
+    		byte bitMask = (byte) (~(1 << byteOffSet));
+    		headerByte = (byte) (headerByte & bitMask);
+    	}
+        this.header[byteIndex] = headerByte;
     }
 
     /**
