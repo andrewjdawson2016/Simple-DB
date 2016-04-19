@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -152,8 +153,14 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+    	DbFile dbFile = Database.getCatalog().getDatabaseFile(tableId);
+    	ArrayList<Page> dirtiedPages = dbFile.insertTuple(tid, t);
+    	for (Page currPage : dirtiedPages) {
+    		currPage.markDirty(true, tid);
+    	}
+    	for (Page currPage : dirtiedPages) {
+    		this.cachedPages.put(currPage.getId(), currPage);
+    	}
     }
 
     /**

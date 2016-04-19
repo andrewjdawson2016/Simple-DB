@@ -21,6 +21,9 @@ public class HeapPage implements Page {
 
     byte[] oldData;
     private final Byte oldDataLock = new Byte((byte)0);
+    
+    private TransactionId lastDirter;
+    private boolean dirty;
 
     /**
      * Create a HeapPage from a set of bytes of data read from disk.
@@ -39,6 +42,8 @@ public class HeapPage implements Page {
      * @see BufferPool#getPageSize()
      */
     public HeapPage(HeapPageId id, byte[] data) throws IOException {
+    	this.lastDirter = null;
+    	this.dirty = false;
         this.pid = id;
         this.td = Database.getCatalog().getTupleDesc(id.getTableId());
         this.numSlots = getNumTuples();
@@ -287,17 +292,20 @@ public class HeapPage implements Page {
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
-        // some code goes here
-	// not necessary for lab1
+    	if (dirty) {
+    		this.dirty = true;
+    		this.lastDirter = tid;
+    	} else {
+    		this.dirty = false;
+    		this.lastDirter = null;
+    	}
     }
 
     /**
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
-        // some code goes here
-	// Not necessary for lab1
-        return null;      
+        return this.lastDirter;     
     }
 
     /**
