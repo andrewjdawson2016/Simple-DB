@@ -23,7 +23,6 @@ public class HeapPage implements Page {
     private final Byte oldDataLock = new Byte((byte)0);
     
     private TransactionId lastDirter;
-    private boolean dirty;
 
     /**
      * Create a HeapPage from a set of bytes of data read from disk.
@@ -43,7 +42,6 @@ public class HeapPage implements Page {
      */
     public HeapPage(HeapPageId id, byte[] data) throws IOException {
     	this.lastDirter = null;
-    	this.dirty = false;
         this.pid = id;
         this.td = Database.getCatalog().getTupleDesc(id.getTableId());
         this.numSlots = getNumTuples();
@@ -283,6 +281,7 @@ public class HeapPage implements Page {
     			t.setRecordId(updatedRecordId);
     			this.tuples[i] = t;
     			markSlotUsed(i, true);
+    			break;
     		}
     	}
     }
@@ -293,10 +292,8 @@ public class HeapPage implements Page {
      */
     public void markDirty(boolean dirty, TransactionId tid) {
     	if (dirty) {
-    		this.dirty = true;
     		this.lastDirter = tid;
     	} else {
-    		this.dirty = false;
     		this.lastDirter = null;
     	}
     }
