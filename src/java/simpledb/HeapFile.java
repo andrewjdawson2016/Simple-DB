@@ -16,6 +16,11 @@ import java.util.*;
 public class HeapFile implements DbFile {
 
 	/**
+	 * The bufferPool that this HeapFile uses to access pages from
+	 */
+	private BufferPool bufferPool;
+	
+	/**
 	 * The file that stores the on-disk backing store for this heap file
 	 */
 	private File file;
@@ -36,6 +41,7 @@ public class HeapFile implements DbFile {
         // some code goes here
     	this.file = f;
     	this.schema = td;
+    	this.bufferPool = new BufferPool(BufferPool.DEFAULT_PAGES);
     }
 
     /**
@@ -95,8 +101,22 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public void writePage(Page page) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+    	int pageNumber = page.getId().pageNumber();
+    	int maxPageNumber = this.numPages();
+    	if (pageNumber > maxPageNumber || pageNumber < 0) {
+    		throw new IllegalArgumentException("attempted to write page at "
+    				+ "invalid position: " + pageNumber);
+    	}
+        int byteOffSet = pageNumber * BufferPool.getPageSize();
+        byte[] pageData = page.getPageData();
+        try {
+        	RandomAccessFile randomAccessFile = new RandomAccessFile(this.file, "rw");
+        	randomAccessFile.seek(byteOffSet);
+        	randomAccessFile.write(pageData);
+        	randomAccessFile.close();
+        } catch (Exception e) {
+        	e.printStackTrace();
+        }
     }
 
     /**
@@ -110,23 +130,47 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+    	if (!t.getTupleDesc().equals(schema)) {
+    		throw new DbException("tuple desc do not match for inserted tuple");
+    	}
+    	int numberOfPages = this.numPages();
+    	int tableid = getId();
+    	ArrayList<Page> pagesEffected = new ArrayList<Page>();
+    	for (int i = 0; i < numberOfPages; i++) {
+    		PageId currPageId = new HeapPageId(tableid, i);
+    		Page currPage = this.bufferPool.getPage(tid, currPageId, Permissions.READ_WRITE);
+    		int emptySlotCount = ((HeapPage) currPage).getNumEmptySlots();
+    		if (emptySlotCount > 0) {
+    			((HeapPage) currPage).insertTuple(t);
+    			pagesEffected.add(currPage);
+    			return pagesEffected;
+    		}
+    	}
+    	
+    	// if we got here it means there are no pages with space in this file
+    	// so we need to create a new page and append it to the file
+    	byte[] emptyPageData = HeapPage.createEmptyPageData();
+    	HeapPageId emptyHeapPageId = new HeapPageId(tableid, numberOfPages);
+    	Page emptyPage = new HeapPage(emptyHeapPageId, emptyPageData);
+		((HeapPage) emptyPage).insertTuple(t);
+    	this.writePage(emptyPage);
+		pagesEffected.add(emptyPage);
+		return pagesEffected;
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+    	Page containingHeapPage = this.bufferPool.getPage(tid, 
+    			t.getRecordId().getPageId(), Permissions.READ_WRITE);
+    	((HeapPage) containingHeapPage).deleteTuple(t);
+    	ArrayList<Page> pagesEffected = new ArrayList<Page>();
+    	pagesEffected.add(containingHeapPage);
+    	return pagesEffected;
     }
 
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
-        // some code goes here
         return new DbHeapFileIterator(this.getId(), this.numPages() - 1, tid);
     }
 }
-

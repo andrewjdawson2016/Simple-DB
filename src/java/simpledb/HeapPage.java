@@ -250,6 +250,9 @@ public class HeapPage implements Page {
     		throw new DbException("tuple " + t + " is already deleted");
     	}
     	
+    	// a RecordId with pageno of -1 is not on any page
+		RecordId updatedRecordId = new RecordId(this.pid, -1);
+		t.setRecordId(updatedRecordId);
     	markSlotUsed(headerIndex, false);
     }
 
@@ -261,8 +264,6 @@ public class HeapPage implements Page {
      * @param t The tuple to add.
      */
     public void insertTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
     	if (getNumEmptySlots() == 0) {
     		throw new DbException("there are no empty slots on page " + this.pid);
     	}
