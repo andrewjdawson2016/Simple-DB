@@ -13,7 +13,6 @@ public class Delete extends Operator {
     private TransactionId tid;
     private DbIterator child;
     private int deleteCount;
-    private boolean shouldReturnCount;
     
     /**
      * Constructor specifying the transaction that this delete belongs to as
@@ -28,7 +27,6 @@ public class Delete extends Operator {
         this.tid = t;
         this.child = child;
         this.deleteCount = -1;
-        this.shouldReturnCount = false;
     }
 
     public TupleDesc getTupleDesc() {
@@ -38,7 +36,6 @@ public class Delete extends Operator {
 
     public void open() throws DbException, TransactionAbortedException {
         this.child.open();
-        this.shouldReturnCount = true;
         updateDeleteCount();
         super.open();
     }
@@ -60,11 +57,9 @@ public class Delete extends Operator {
         super.close();
         this.child.close();
         this.deleteCount = -1;
-        this.shouldReturnCount = false;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-    	this.shouldReturnCount = true;
     	this.child.rewind();
     	updateDeleteCount();
     }
@@ -79,19 +74,20 @@ public class Delete extends Operator {
      * @see BufferPool#deleteTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-    	if (this.shouldReturnCount) {
-    		this.shouldReturnCount = false;
-    		return getCountTuple(this.deleteCount);
+    	if (this.deleteCount != -1) {
+    		Tuple countTupleResult = getCountTuple();
+    		this.deleteCount = -1;
+    		return countTupleResult;
     	} else {
     		return null;
     	}
     }
     
-    private Tuple getCountTuple(int deletedCount) {
+    private Tuple getCountTuple() {
         Type[] types = { Type.INT_TYPE };
         TupleDesc deletedCountTupleDesc = new TupleDesc(types);
         Tuple deletedCountTuple = new Tuple(deletedCountTupleDesc);
-        deletedCountTuple.setField(0, new IntField(deletedCount));
+        deletedCountTuple.setField(0, new IntField(this.deleteCount));
         return deletedCountTuple;
     }
        
@@ -107,5 +103,4 @@ public class Delete extends Operator {
     	    this.child = children[0];
     	}
     }
-
 }

@@ -14,7 +14,6 @@ public class Insert extends Operator {
     private DbIterator child;
     private int tableid;
     private int insertCount;
-    private boolean shouldReturnCount;
     
     /**
      * Constructor.
@@ -35,7 +34,6 @@ public class Insert extends Operator {
         this.child = child;
         this.tableid = tableid;
         this.insertCount = -1;
-        this.shouldReturnCount = false;
     }
 
     public TupleDesc getTupleDesc() {
@@ -45,7 +43,6 @@ public class Insert extends Operator {
 
     public void open() throws DbException, TransactionAbortedException {
         this.child.open();
-        this.shouldReturnCount = true;
         updateInsertCount();
         super.open();
     }
@@ -67,11 +64,9 @@ public class Insert extends Operator {
         super.close();
         this.child.close();
         this.insertCount = -1;
-        this.shouldReturnCount = false;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-    	this.shouldReturnCount = true;
     	this.child.rewind();
     	updateInsertCount();
     }
@@ -90,19 +85,20 @@ public class Insert extends Operator {
      * @see BufferPool#insertTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-    	if (this.shouldReturnCount) {
-    		this.shouldReturnCount = false;
-    		return getCountTuple(this.insertCount);
+    	if (this.insertCount != -1) {
+    		Tuple countTupleResult = getCountTuple();
+    		this.insertCount = -1;
+    		return countTupleResult;
     	} else {
     		return null;
     	}
     }
     
-    private Tuple getCountTuple(int insertedCount) {
+    private Tuple getCountTuple() {
         Type[] types = { Type.INT_TYPE };
         TupleDesc insertedCountTupleDesc = new TupleDesc(types);
         Tuple insertedCountTuple = new Tuple(insertedCountTupleDesc);
-        insertedCountTuple.setField(0, new IntField(insertedCount));
+        insertedCountTuple.setField(0, new IntField(this.insertCount));
         return insertedCountTuple;
     }
 
