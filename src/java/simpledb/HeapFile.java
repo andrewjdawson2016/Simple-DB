@@ -14,11 +14,6 @@ import java.util.*;
  * @author Sam Madden
  */
 public class HeapFile implements DbFile {
-
-	/**
-	 * The bufferPool that this HeapFile uses to access pages from
-	 */
-	private BufferPool bufferPool;
 	
 	/**
 	 * The file that stores the on-disk backing store for this heap file
@@ -41,7 +36,6 @@ public class HeapFile implements DbFile {
         // some code goes here
     	this.file = f;
     	this.schema = td;
-    	this.bufferPool = new BufferPool(BufferPool.DEFAULT_PAGES);
     }
 
     /**
@@ -138,7 +132,7 @@ public class HeapFile implements DbFile {
     	ArrayList<Page> pagesEffected = new ArrayList<Page>();
     	for (int i = 0; i < numberOfPages; i++) {
     		PageId currPageId = new HeapPageId(tableid, i);
-    		Page currPage = this.bufferPool.getPage(tid, currPageId, Permissions.READ_WRITE);
+    		Page currPage = Database.getBufferPool().getPage(tid, currPageId, Permissions.READ_WRITE);
     		int emptySlotCount = ((HeapPage) currPage).getNumEmptySlots();
     		if (emptySlotCount > 0) {
     			((HeapPage) currPage).insertTuple(t);
@@ -161,7 +155,7 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
-    	Page containingHeapPage = this.bufferPool.getPage(tid, 
+    	Page containingHeapPage = Database.getBufferPool().getPage(tid, 
     			t.getRecordId().getPageId(), Permissions.READ_WRITE);
     	((HeapPage) containingHeapPage).deleteTuple(t);
     	ArrayList<Page> pagesEffected = new ArrayList<Page>();
