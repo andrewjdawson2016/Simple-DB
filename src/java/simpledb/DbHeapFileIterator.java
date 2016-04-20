@@ -69,7 +69,11 @@ public class DbHeapFileIterator extends AbstractDbFileIterator {
 		else {
 			this.currentPageNumber = this.currentPageNumber + 1;
 			updateIterator();
-			return this.currentIterator.next();
+			if (this.currentIterator.hasNext()) {
+				return this.currentIterator.next();
+			} else {
+				return null;
+			}
 		}
 	}
 	
