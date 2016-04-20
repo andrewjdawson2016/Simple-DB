@@ -12,6 +12,8 @@ public class Delete extends Operator {
 
     private TransactionId tid;
     private DbIterator child;
+    private int deleteCount;
+    private boolean shouldReturnCount;
     
     /**
      * Constructor specifying the transaction that this delete belongs to as
@@ -25,6 +27,8 @@ public class Delete extends Operator {
     public Delete(TransactionId t, DbIterator child) {
         this.tid = t;
         this.child = child;
+        this.deleteCount = -1;
+        this.shouldReturnCount = false;
     }
 
     public TupleDesc getTupleDesc() {
@@ -34,16 +38,35 @@ public class Delete extends Operator {
 
     public void open() throws DbException, TransactionAbortedException {
         this.child.open();
+        this.shouldReturnCount = true;
+        updateDeleteCount();
         super.open();
+    }
+    
+    private void updateDeleteCount() throws DbException, TransactionAbortedException {
+        int dCount = 0;
+        while (this.child.hasNext()) {
+        	try {
+				Database.getBufferPool().deleteTuple(this.tid, child.next());
+				dCount++;
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+        }
+        this.deleteCount = dCount;
     }
 
     public void close() {
         super.close();
         this.child.close();
+        this.deleteCount = -1;
+        this.shouldReturnCount = false;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
+    	this.shouldReturnCount = true;
     	this.child.rewind();
+    	updateDeleteCount();
     }
 
     /**
@@ -56,21 +79,12 @@ public class Delete extends Operator {
      * @see BufferPool#deleteTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        if (!child.hasNext()) {
-        	return null;
-        }
-        
-        int deletedCount = 0;
-        while (child.hasNext()) {
-        	try {
-				Database.getBufferPool().deleteTuple(this.tid, child.next());
-				deletedCount++;
-			} catch (IOException e) {
-				e.printStackTrace();
-				return null;
-			}
-        }
-        return getCountTuple(deletedCount);
+    	if (this.shouldReturnCount) {
+    		this.shouldReturnCount = false;
+    		return getCountTuple(this.deleteCount);
+    	} else {
+    		return null;
+    	}
     }
     
     private Tuple getCountTuple(int deletedCount) {

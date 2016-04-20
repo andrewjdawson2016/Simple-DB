@@ -13,6 +13,8 @@ public class Insert extends Operator {
     private TransactionId tid;
     private DbIterator child;
     private int tableid;
+    private int insertCount;
+    private boolean shouldReturnCount;
     
     /**
      * Constructor.
@@ -32,6 +34,8 @@ public class Insert extends Operator {
         this.tid = t;
         this.child = child;
         this.tableid = tableid;
+        this.insertCount = -1;
+        this.shouldReturnCount = false;
     }
 
     public TupleDesc getTupleDesc() {
@@ -41,16 +45,35 @@ public class Insert extends Operator {
 
     public void open() throws DbException, TransactionAbortedException {
         this.child.open();
+        this.shouldReturnCount = true;
+        updateInsertCount();
         super.open();
+    }
+    
+    private void updateInsertCount() throws DbException, TransactionAbortedException {
+        int iCount = 0;
+        while (this.child.hasNext()) {
+        	try {
+				Database.getBufferPool().insertTuple(this.tid, this.tableid, child.next());
+				iCount++;
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+        }
+        this.insertCount = iCount;
     }
 
     public void close() {
         super.close();
         this.child.close();
+        this.insertCount = -1;
+        this.shouldReturnCount = false;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
+    	this.shouldReturnCount = true;
     	this.child.rewind();
+    	updateInsertCount();
     }
 
     /**
@@ -67,21 +90,12 @@ public class Insert extends Operator {
      * @see BufferPool#insertTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        if (!child.hasNext()) {
-        	return null;
-        }
-        
-        int insertedCount = 0;
-        while (child.hasNext()) {
-        	try {
-				Database.getBufferPool().insertTuple(this.tid, this.tableid, child.next());
-				insertedCount++;
-			} catch (IOException e) {
-				e.printStackTrace();
-				return null;
-			}
-        }
-        return getCountTuple(insertedCount);
+    	if (this.shouldReturnCount) {
+    		this.shouldReturnCount = false;
+    		return getCountTuple(this.insertCount);
+    	} else {
+    		return null;
+    	}
     }
     
     private Tuple getCountTuple(int insertedCount) {
