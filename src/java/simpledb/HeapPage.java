@@ -254,7 +254,7 @@ public class HeapPage implements Page {
     	}
     	
     	// a RecordId with pageno of -1 is not on any page
-		RecordId updatedRecordId = new RecordId(null, -1);
+		RecordId updatedRecordId = new RecordId(this.pid, -1);
 		t.setRecordId(updatedRecordId);
     	markSlotUsed(headerIndex, false);
     }

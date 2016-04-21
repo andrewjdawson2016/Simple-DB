@@ -87,7 +87,8 @@ public class BufferPool {
         	evictPage();
         }
         
-        Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
+        DbFile fileOfPage = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        Page page = fileOfPage.readPage(pid);
         this.cachedPages.put(page.getId(), page);
         return page;
     }
