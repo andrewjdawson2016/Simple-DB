@@ -2,7 +2,7 @@ package simpledb;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -44,7 +44,7 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         // some code goes here
-    	this.cachedPages = new HashMap<PageId, Page>();
+    	this.cachedPages = new LinkedHashMap<PageId, Page>();
     	this.numPages = numPages;
     }
     
@@ -84,7 +84,7 @@ public class BufferPool {
     		return this.cachedPages.get(pid);
     	}
         if (this.cachedPages.size() == this.numPages) {
-        	throw new DbException("Buffer Pool at maximum capcity");
+        	evictPage();
         }
         
         Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
@@ -159,6 +159,9 @@ public class BufferPool {
     		currPage.markDirty(true, tid);
     	}
     	for (Page currPage : dirtiedPages) {
+    		if (this.cachedPages.size() == this.numPages) {
+    			evictPage();
+    		}
     		this.cachedPages.put(currPage.getId(), currPage);
     	}
     }
@@ -185,6 +188,9 @@ public class BufferPool {
     		currPage.markDirty(true, tid);
     	}
     	for (Page currPage : dirtiedPages) {
+    		if (this.cachedPages.size() == this.numPages) {
+    			evictPage();
+    		}
     		this.cachedPages.put(currPage.getId(), currPage);
     	}
     }
@@ -195,9 +201,9 @@ public class BufferPool {
      *     break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
-
+        for (PageId pid : this.cachedPages.keySet()) {
+        	flushPage(pid);
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -209,8 +215,7 @@ public class BufferPool {
         are removed from the cache so they can be reused safely
     */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
-        // not necessary for lab1
+    	this.cachedPages.remove(pid);
     }
 
     /**
@@ -218,8 +223,12 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+    	Page page = this.cachedPages.get(pid);
+    	if (page.isDirty() != null) {
+    		DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
+    		page.markDirty(false, null);
+    		file.writePage(page);
+    	}
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -234,8 +243,14 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    	if (!this.cachedPages.isEmpty()) {
+    		PageId oldestPageId = this.cachedPages.keySet().iterator().next();
+    		try {
+				flushPage(oldestPageId);
+				this.cachedPages.remove(oldestPageId);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+    	}
     }
-
 }
