@@ -68,16 +68,25 @@ public class Join extends Operator {
         this.child1.open();
         this.child2.open();
         if (this.p.getOperator() == Predicate.Op.EQUALS) {
+        	Map<Field, List<Tuple>> ht = new HashMap<Field, List<Tuple>>();
         	while (this.child1.hasNext()) {
         		Tuple currChild1Tuple = this.child1.next();
-        		while (this.child2.hasNext()) {
-        			Tuple currChild2Tuple = this.child2.next();
-        			if (p.filter(currChild1Tuple, currChild2Tuple)) {
-        				Tuple currJoinedTuple = getMergedTuples(currChild1Tuple, currChild2Tuple);
+        		Field currChild1Field = currChild1Tuple.getField(this.p.getField1());
+        		if (!ht.containsKey(currChild1Field)) {
+        			ht.put(currChild1Field, new ArrayList<Tuple>());
+        		}
+        		ht.get(currChild1Field).add(currChild1Tuple);
+        	}
+        	while (this.child2.hasNext()) {
+        		Tuple currChild2Tuple = this.child2.next();
+        		Field currChild2Field = currChild2Tuple.getField(this.p.getField2());
+        		if (ht.containsKey(currChild2Field)) {
+        			List<Tuple> matchingTuples = ht.get(currChild2Field);
+        			for (Tuple currMatch : matchingTuples) {
+        				Tuple currJoinedTuple = getMergedTuples(currMatch, currChild2Tuple);
         				this.joinedTuples.add(currJoinedTuple);
         			}
         		}
-        		this.child2.rewind();
         	}
         } else {
         	while (this.child1.hasNext()) {
