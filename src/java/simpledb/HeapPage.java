@@ -244,7 +244,7 @@ public class HeapPage implements Page {
      * @param t The tuple to delete
      */
     public void deleteTuple(Tuple t) throws DbException {
-    	if (t.getRecordId().getPageId() != this.pid) {
+    	if (t.getRecordId().getPageId() == null || !t.getRecordId().getPageId().equals(this.pid)) {
     		throw new DbException("tuple " + t + " does not belong to this page");
     	}
     	
@@ -326,7 +326,7 @@ public class HeapPage implements Page {
      * Returns true if associated slot on this page is filled.
      */
     public boolean isSlotUsed(int i) {
-        byte headerByte = header[i / 8];
+        int headerByte = header[i / 8];
         int bitMask = 1 << (i % 8);
         return (headerByte & bitMask) != 0;
     }
