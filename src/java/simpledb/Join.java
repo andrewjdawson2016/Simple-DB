@@ -12,7 +12,8 @@ public class Join extends Operator {
     private JoinPredicate p;
     private DbIterator child1;
     private DbIterator child2;
-    private Tuple child1Tuple;
+    private List<Tuple> joinedTuples;
+    private Iterator<Tuple> itr;
     
     /**
      * Constructor. Accepts to children to join and the predicate to join them
@@ -63,9 +64,35 @@ public class Join extends Operator {
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
+        this.joinedTuples = new ArrayList<Tuple>();
         this.child1.open();
         this.child2.open();
-        this.child1Tuple = child1.next();
+        if (this.p.getOperator() == Predicate.Op.EQUALS) {
+        	while (this.child1.hasNext()) {
+        		Tuple currChild1Tuple = this.child1.next();
+        		while (this.child2.hasNext()) {
+        			Tuple currChild2Tuple = this.child2.next();
+        			if (p.filter(currChild1Tuple, currChild2Tuple)) {
+        				Tuple currJoinedTuple = getMergedTuples(currChild1Tuple, currChild2Tuple);
+        				this.joinedTuples.add(currJoinedTuple);
+        			}
+        		}
+        		this.child2.rewind();
+        	}
+        } else {
+        	while (this.child1.hasNext()) {
+        		Tuple currChild1Tuple = this.child1.next();
+        		while (this.child2.hasNext()) {
+        			Tuple currChild2Tuple = this.child2.next();
+        			if (p.filter(currChild1Tuple, currChild2Tuple)) {
+        				Tuple currJoinedTuple = getMergedTuples(currChild1Tuple, currChild2Tuple);
+        				this.joinedTuples.add(currJoinedTuple);
+        			}
+        		}
+        		this.child2.rewind();
+        	}
+        }
+        this.itr = this.joinedTuples.iterator();
         super.open();
     }
 
@@ -73,13 +100,12 @@ public class Join extends Operator {
         super.close();
         this.child1.close();
         this.child2.close();
-        this.child1Tuple = null;
+        this.joinedTuples = null;
+        this.itr = null;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        this.child1.rewind();
-        this.child2.rewind();
-        this.child1Tuple = this.child1.next();
+    	this.itr = this.joinedTuples.iterator();
     }
 
     /**
@@ -101,35 +127,11 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-    	while (this.child1Tuple != null) {
-    		while (child2.hasNext()) {
-    			Tuple currChild2Tuple = child2.next();
-    			if (p.filter(this.child1Tuple, currChild2Tuple)) {
-    				TupleDesc resultTD = getTupleDesc();
-    				Tuple result = new Tuple(resultTD);
-    				Iterator<Field> f1 = this.child1Tuple.fields();
-    				Iterator<Field> f2 = currChild2Tuple.fields();
-    				int i = 0;
-    				while (f1.hasNext()) {
-    					result.setField(i, f1.next());
-    					i++;
-    				}
-    				
-    				while (f2.hasNext()) {
-    					result.setField(i, f2.next());
-    					i++;
-    				}
-    				return result;
-    			}
-    		}
-    		if (this.child1.hasNext()) {
-    			this.child1Tuple = this.child1.next();
-        		child2.rewind();
-    		} else {
-    			this.child1Tuple = null;
-    		}
+    	if (this.itr == null || !(this.itr.hasNext())) {
+    		return null;
+    	} else {
+    		return this.itr.next();
     	}
-    	return null;
     }
 
     @Override
@@ -146,5 +148,23 @@ public class Join extends Operator {
     	if (this.child2 != children[1]) {
     		this.child2 = children[1];
     	}
+    }
+    
+    private Tuple getMergedTuples(Tuple first, Tuple second) {
+    	TupleDesc resultTD = getTupleDesc();
+		Tuple result = new Tuple(resultTD);
+		Iterator<Field> f1 = first.fields();
+		Iterator<Field> f2 = second.fields();
+		int i = 0;
+		while (f1.hasNext()) {
+			result.setField(i, f1.next());
+			i++;
+		}
+		
+		while (f2.hasNext()) {
+			result.setField(i, f2.next());
+			i++;
+		}
+		return result;
     }
 }
