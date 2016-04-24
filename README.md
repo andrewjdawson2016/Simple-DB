@@ -1,388 +1,177 @@
-# CSE444 Lab 2: SimpleDB Operators
+# CSE444 Lab 3: SimpleDB Transactions
 
-#### Version History:
-*   4/4/16 : Initial version
+#### Part 1 Due: Mon, May 2th
+#### Due: Mon, May 9th
 
-## DEADLINES
-##### Part 1 Due: Friday, April 15, 2016
-##### Due: Friday, April 22, 2016
+In this lab, you will implement a simple locking-based transaction system in SimpleDB. You will need to add lock and unlock calls at the appropriate places in your code, as well as code to track the locks held by each transaction and grant locks to transactions as they are needed.
 
-### For Part 1 of the lab, please submit your solutions for the following exercises:
+The remainder of this document describes what is involved in adding transaction support and provides a basic outline of how you might add this support to your database.
 
-*   Exercise 1 (**Section 2.1**)
-*   Exercise 2 (**Section 2.2**)
+As with the previous lab, we recommend that you start as early as possible. Locking and transactions can be quite tricky to debug!
 
-Submitting part 1 of lab 2 on time is worth 10% of your lab 2 final grade and will be graded all-or-nothing. As in the case of lab 1, we will only visually inspect your implementation at this point. We will NOT run any unit tests. However, you are strongly advised to ensure that your code passes the tests. Of course, when you submit your solution for the entire lab, we will run all unit tests (and additional tests also).
+*For Part 1 of the lab, please submit your solutions for the following exercises.*
 
-## Lab Description
+*   Exercise 1 (**Section 2.4**)
+*   Exercise 2 (**Section 2.5**)
 
-In this lab assignment, you will write a set of operators for SimpleDB to implement table modifications (e.g., insert and delete records), selections, joins, and aggregates. These will build on top of the foundation that you wrote in Lab 1 to provide you with a database system that can perform simple queries over multiple tables.
+For Part 1, please tag the commit you wish us to evaluate by executing the lab turnin script:
 
-Additionally, we ignored the issue of buffer pool management in Lab 1: we have not dealt with the problem that arises when we reference more pages than we can fit in memory over the lifetime of the database. In Lab 2, you will design an eviction policy to flush stale pages from the buffer pool.
-
-You do not need to implement transactions or locking in this lab.
-
-The remainder of this document gives some suggestions about how to start coding, describes a set of exercises to help you work through the lab, and discusses how to hand in your code. This lab requires you to write a fair amount of code, so we encourage you to **start early**!
+```sh
+$ ./turnInLab.sh lab3-part1
+```
 
 ## 1\. Getting started
 
-You should begin with the code you submitted for Lab 1 (if you did not submit code for Lab 1, or your solution didn't work properly, contact us to discuss options). We have provided you with extra code and extra test cases for this lab that are not in the original code distribution you received. We reiterate that the unit tests we provide are to help guide your implementation along, but they are not intended to be comprehensive or to establish correctness.
+You should begin with the code you submitted for Lab 2 (if you did not submit code for Lab 2, or your solution didn't work properly, contact us to discuss options). We have provided you with extra test cases for this lab that are not in the original code distribution you received. We reiterate that the unit tests we provide are to help guide your implementation along, but they are not intended to be comprehensive or to establish correctness.
 
-You will need to add these new files to your release. You will do this by performing a `git` pull from the upstream repository that you configured during lab one:
+You will need to add these new files to your release. You will do this by performing a `git` pull from the upstream repository that you configured during the previous lab.  However, unlike last time you will be pulling from a lab3-specific branch:
 
 ```sh
-$ git pull upstream master
+$ git pull upstream master # Make sure we're current with master
+$ git pull upstream lab3   # Now pull lab3!
 ```
 
 *   **Eclipse users** should do one of the following:
-    *   Either start a new project called CSE444-lab2 using the instructions from lab 1.
-    *   Or, continue using the CSE444-lab1 project. In that case, you should add the new files to your lab 1 directory by selecting **Team > Pull**. For help in Eclipse/Git configuration look at the [EGit User Guide](https://wiki.eclipse.org/EGit/User_Guide#Fetching_from_upstream) under 3.3.4 Pulling New Changes from Upstream Branch.
+    *   Either start a new project called CSE444-lab3 using the instructions from lab 1.
+    *   Or, continue using the CSE444-lab2 project. In that case, you should add the new files to your lab directory by selecting **Team > Pull**. For help in Eclipse/Git configuration look at the [EGit User Guide](https://wiki.eclipse.org/EGit/User_Guide#Fetching_from_upstream) under 3.3.4 Pulling New Changes from Upstream Branch.
 
     You may need to take one more step for your code to compile. Under the package explorer, right click the project name (probably `CSE444-lab1`), and select **Properties**. Choose **Java Build Path** on the left-hand-side, and click on the **Libraries** tab on the right-hand-side. Push the **Add JARs...** button, select **zql.jar** and **jline-0.9.94.jar**, and push **OK**, followed by **OK**. Your code should now compile.
 
-### 1.3\. Implementation hints
+## 2\. Transactions, Locking, and Concurrency Control
 
-As before, we **strongly encourage** you to read through this entire document to get a feel for the high-level design of SimpleDB before you write code.
+Before starting, you should make sure you understand what a transaction is and how **strict two-phase locking** (which you will use to ensure isolation and atomicity of your transactions) works.
 
-We suggest exercises along this document to guide your implementation, but you may find that a different order makes more sense for you. As before, we will grade your assignment by looking at your code and verifying that you have passed the test for the ant targets `test` and `systemtest`. See Section 3.4 for a complete discussion of grading and list of the tests you will need to pass.
+In the remainder of this section, we briefly overview these concepts and discuss how they relate to SimpleDB.
 
-Here's a rough outline of one way you might proceed with your SimpleDB implementation; more details on the steps in this outline, including exercises, are given in Section 2 below.
+### 2.1\. Transactions
 
-*   Implement the operators `Filter` and `Join` and verify that their corresponding tests work. The Javadoc comments for these operators contain details about how they should work. We have given you implementations of `Project` and `OrderBy` which may help you understand how other operators work.
-*   Implement `IntegerAggregator` and `StringAggregator`. Here, you will write the logic that actually computes an aggregate over a particular field across multiple groups in a sequence of input tuples. Use integer division for computing the average, since SimpleDB only supports integers. StringAggegator only needs to support the COUNT aggregate, since the other operations do not make sense for strings.
-*   Implement the `Aggregate` operator. As with other operators, aggregates implement the `DbIterator` interface so that they can be placed in SimpleDB query plans. Note that the output of an `Aggregate` operator is an aggregate value of an entire group for each call to `next()`, and that the aggregate constructor takes the aggregation and grouping fields.
-*   Implement the methods related to tuple insertion, deletion, and page eviction in `BufferPool`. You do not need to worry about transactions at this point.
-*   Implement the `Insert` and `Delete` operators. Like all operators, `Insert` and `Delete` implement `DbIterator`, accepting a stream of tuples to insert or delete and outputting a single tuple with an integer field that indicates the number of tuples inserted or deleted. These operators will need to call the appropriate methods in `BufferPool` that actually modify the pages on disk. Check that the tests for inserting and deleting tuples work properly.
+A transaction is a group of database actions (e.g., inserts, deletes, and reads) that are executed _atomically_; that is, either all of the actions complete or none of them do, and it is not apparent to an outside observer of the database that these actions were not completed as a part of a single, indivisible action.
 
-    Note that SimpleDB does not implement any kind of consistency or integrity checking, so it is possible to insert duplicate records into a file and there is no way to enforce primary or foreign key constraints.
+### 2.2\. The ACID Properties
 
-At this point you should be able to pass all of the tests in the ant `systemtest` target, which is the goal of this lab.
+To help you understand how transaction management works in SimpleDB, we briefly review how it ensures that the ACID properties are satisfied:
 
-You'll also be able to use the provided SQL parser to run SQL queries against your database! See Section 2.7 for a brief tutorial and a description of an optional contest to see who can write the fastest SimpleDB implementation.
+*   **Atomicity**: Strict two-phase locking and careful buffer management ensure atomicity.
+*   **Consistency**: The database is transaction consistent by virtue of atomicity. Other consistency issues (e.g., key constraints) are not addressed in SimpleDB.
+*   **Isolation**: Strict two-phase locking provides isolation.
+*   **Durability**: A FORCE buffer management policy ensures durability (see Section 2.3 below).
 
-Finally, you might notice that the iterators in this lab extend the `Operator` class instead of implementing the DbIterator interface. Because the implementation of `next`/`hasNext` is often repetitive, annoying, and error-prone, `Operator` implements this logic generically, and only requires that you implement a simpler `readNext`. Feel free to use this style of implementation, or just implement the `DbIterator` interface if you prefer. To implement the `DbIterator` interface, remove `extends Operator` from iterator classes, and in its place put `implements DbIterator`.
+### 2.3\. Recovery and Buffer Management
 
-## 2\. SimpleDB Architecture and Implementation Guide
+To simplify your job, we recommend that you implement a **NO STEAL/FORCE** buffer management policy. As we discussed in class, this means that:
 
-### 2.1\. Filter and Join
+*   You shouldn't evict dirty (updated) pages from the buffer pool if they are locked by an uncommitted transaction (this is NO STEAL).
+*   On transaction commit, you should force dirty pages to disk (e.g., write the pages out) (this is FORCE).
 
-Recall that SimpleDB DbIterator classes implement the operations of the relational algebra. You will now implement two operators that will enable you to perform queries that are slightly more interesting than a table scan.
+To further simplify your life, you may assume that SimpleDB will not crash while processing a `transactionComplete` command. Note that these three points mean that you do not need to implement log-based recovery in this lab, since you will never need to undo any work (you never evict dirty pages) and you will never need to redo any work (you force updates on commit and will not crash during commit processing).
 
-*   `Filter`: This operator only returns tuples that satisfy a `Predicate` that is specified as part of its constructor. Hence, it filters out any tuples that do not match the predicate.
-*   `Join`: This operator joins tuples from its two children according to a `JoinPredicate` that is passed in as part of its constructor. We only require a simple nested loops join, but you may explore more interesting join implementations. Describe your implementation in your lab writeup.
+### 2.4\. Granting Locks
 
-#### Exercise 1. Implement the skeleton methods in:
+You will need to add calls to SimpleDB (in `BufferPool`, for example), that allow a caller to request or release a (shared or exclusive) lock on a specific object on behalf of a specific transaction.
 
-*   `src/simpledb/Predicate.java`
-*   `src/simpledb/JoinPredicate.java`
-*   `src/simpledb/Filter.java`
-*   `src/simpledb/Join.java`
+We recommend locking at _**page**_ **granularity**, though you should be able to implement locking at _tuple_ granularity if you wish (please do not implement table-level locking). The rest of this document and our unit tests assume page-level locking.
 
-At this point, your code should pass the unit tests in `PredicateTest`, `JoinPredicateTest`, `FilterTest`, and `JoinTest`. Furthermore, you should be able to pass the system tests `FilterTest` and `JoinTest`.
+You will need to **create data structures** that keep track of which locks each transaction holds and that check to see if a lock should be granted to a transaction when it is requested. This is important. We recommend that you implement a new, **LockManager class** that will hold these data structures and will manage locking and unlocking operations.
 
-### 2.2\. Aggregates
+You will need to implement shared and exclusive locks; recall that these work as follows:
 
-An additional SimpleDB operator implements basic SQL aggregates with a `GROUP BY` clause. You should implement the five SQL aggregates (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) and support grouping. You only need to support aggregates over a single field, and grouping by a single field.
+*   Before a transaction can read an object, it must have a shared lock on it.
+*   Before a transaction can write an object, it must have an exclusive lock on it.
+*   Multiple transactions can have a shared lock on an object.
+*   Only one transaction may have an exclusive lock on an object.
+*   If transaction _t_ is the only transaction holding a shared lock on an object _o_, _t_ may _upgrade_ its lock on _o_ to an exclusive lock.
 
-In order to calculate aggregates, we use an `Aggregator` interface which merges a new tuple into the existing calculation of an aggregate. The `Aggregator` is told during construction what operation it should use for aggregation. Subsequently, the client code should call `Aggregator.mergeTupleIntoGroup()` for every tuple in the child iterator. After all tuples have been merged, the client can retrieve a `DbIterator` of aggregation results. Each tuple in the result is a pair of the form `(groupValue, aggregateValue)`, unless the value of the group by field was `Aggregator.NO_GROUPING`, in which case the result is a single tuple of the form `(aggregateValue)`.
+If a transaction requests a lock that it should not be granted, your code should _block_, waiting for that lock to become available (i.e., be released by another transaction running in a different thread).
 
-Note that this implementation requires space linear in the number of distinct groups. For the purposes of this lab, you do not need to worry about the situation where the number of groups exceeds available memory.
+You need to be especially careful to avoid race conditions when writing the code that acquires locks -- think about how you will ensure that correct behavior results if two threads request the same lock at the same time (you way wish to read about [Synchronization](http://docs.oracle.com/javase/tutorial/essential/concurrency/sync.html) in Java).
 
-#### Exercise 2. Implement the skeleton methods in:
+**Exercise 1.** Write the methods that acquire and release locks in BufferPool. Assuming you are using page-level locking, you will need to complete the following:
 
-*   `src/simpledb/IntegerAggregator.java`
-*   `src/simpledb/StringAggregator.java`
-*   `src/simpledb/Aggregate.java`
+*   Modify `getPage()` to block and acquire the desired lock before returning a page.
+*   Implement `releasePage()`. This method is primarily used for testing, and at the end of transactions.
+*   Implement `holdsLock()` so that logic in Exercise 2 can determine whether a page is already locked by a transaction.
 
-At this point, your code should pass the unit tests IntegerAggregatorTest, StringAggregatorTest, and AggregateTest. Furthermore, you should be able to pass the AggregateTest system test.
+You may need to implement the next exercise before your code passes the unit tests in LockingTest.
 
-### End of Part 1
----
+### 2.5\. Lock Lifetime
 
-### 2.3\. HeapFile Mutability
+You will need to implement strict two-phase locking. This means that transactions should acquire the appropriate type of lock on any object before accessing that object and shouldn't release any locks until after the transaction commits.
 
-Now, we will begin to implement methods to support modifying tables. We begin at the level of individual pages and files. There are two main sets of operations: adding tuples and removing tuples.
+Fortunately, the SimpleDB design is such that it is possible to obtain locks on pages in `BufferPool.getPage()` before you read or modify them. So, rather than adding calls to locking routines in each of your operators, we recommend acquiring locks in `getPage()`. Depending on your implementation, it is possible that you may not have to acquire a lock anywhere else. It is up to you to verify this!
 
-#### Removing tuples:
-To remove a tuple, you will need to implement `deleteTuple`. Tuples contain `RecordID`s which allow you to find the page they reside on, so this should be as simple as locating the page a tuple belongs to and modifying the headers of the page appropriately.
+You will need to acquire a _shared_ lock on any page (or tuple) before you read it, and you will need to acquire an _exclusive_ lock on any page (or tuple) before you write it. You will notice that we are already passing around `Permissions` objects in the BufferPool; these objects indicate the type of lock that the caller would like to have on the object being accessed (we have given you the code for the `Permissions` class).
 
-#### Adding tuples:
+Note that your implementation of `HeapFile.insertTuple()` and `HeapFile.deleteTuple()`, as well as the implementation of the iterator returned by `HeapFile.iterator()` should access pages using `BufferPool.getPage()`. Double check that that these different uses of `getPage()` pass the correct permissions object (e.g., `Permissions.READ_WRITE` or `Permissions.READ_ONLY`). You may also wish to double check that your implementation of `BufferPool.insertTuple()` and `BufferPool.deleteTuple()` call `markDirty()` on any of the pages they access (you should have done this when you implemented this code in lab 2, but we did not test for this case).
 
-The `insertTuple` method in `HeapFile.java` is responsible for adding a tuple to a heap file. To add a new tuple to a heap file, you will have to find a page with an empty slot. If no such pages exist in the heap file, you need to create a new page and append it to the physical file on disk. You will need to ensure that the `RecordID` in the tuple is updated correctly.
+After you have acquired locks, you will need to think about when to release them as well. It is clear that you should release all locks associated with a transaction after it has committed or aborted to ensure strict 2PL. However, it is possible for there to be other scenarios in which releasing a lock before a transaction ends might be useful. For instance, you may release a shared lock on a page after scanning it to find empty slots (as described below).
 
-#### Exercise 3. Implement the remaining skeleton methods in:
+**Exercise 2.** Ensure that you acquire and release locks throughout SimpleDB. Some (but not necessarily all) actions that you should verify work properly:
 
-*   `src/simpledb/HeapPage.java`
-*   `src/simpledb/HeapFile.java`
-    (Note that you do not necessarily need to implement writePage at this point).
+*   Reading tuples off of pages during a `SeqScan` (if you implemented locking in `BufferPool.getPage()`, this should work correctly as long as your `HeapFile.iterator()` uses `BufferPool.getPage()`).
+*   Inserting and deleting tuples through BufferPool and HeapFile methods (if you implemented locking in `BufferPool.getPage()`, this should work correctly as long as `HeapFile.insertTuple()` and `HeapFile.deleteTuple()` use `BufferPool.getPage()`).
 
-To implement `HeapPage`, you will need to modify the header bitmap for methods such as `insertTuple()` and `deleteTuple()`. You may find that the `getNumEmptySlots()` and `isSlotUsed()` methods we asked you to implement in Lab 1 serve as useful abstractions. Note that there is a `markSlotUsed` method provided as an abstraction to modify the filled or cleared status of a tuple in the page header.
+You will also want to think especially hard about acquiring and releasing locks in the following situations:
 
-**Note**: it is important that the `HeapFile.insertTuple()` and `HeapFile.deleteTuple()` methods access pages using the `BufferPool.getPage()` method; otherwise, your implementation of transactions in the next lab will not work properly.
+*   Adding a new page to a `HeapFile`. When do you physically write the page to disk? Are there race conditions with other transactions (on other threads) that might need special attention at the `HeapFile` level, regardless of page-level locking?
+*   Looking for an empty slot into which you can insert tuples. Most implementations scan pages looking for an empty slot, and will need a READ_ONLY lock to do this. Surprisingly, however, if a transaction _t_ finds no free slot on a page _p_, _t_ may immediately release the lock on _p_. Although this apparently contradicts the rules of two-phase locking, it is ok because _t_ did not use any data from the page, such that a concurrent transaction _t'_ which updated _p_ cannot possibly effect the answer or outcome of _t_.
 
-Next, implement the following skeleton methods in `src/simpledb/BufferPool.java`:
+At this point, your code should pass the unit tests in `LockingTest`.
 
-*   `insertTuple()`
-*   `deleteTuple()`
+### 2.6\. Implementing NO STEAL
 
-These methods should call the appropriate methods in the `HeapFile` that belong to the table being modified (this extra level of indirection is needed to support other types of files — like indices — in the future).
+Modifications from a transaction are written to disk only after it commits. This means we can abort a transaction by discarding the dirty pages and rereading them from disk. Thus, we must not evict dirty pages. This policy is called NO STEAL.
 
-At this point, your code should pass the unit tests in `HeapPageWriteTest` and `HeapFileWriteTest`. We have not provided additional unit tests for `HeapFile.deleteTuple()` or `BufferPool`.
+You will need to modify the `evictPage` method in `BufferPool`. In particular, it must never evict a dirty page. If your eviction policy prefers a dirty page for eviction, you will have to find a way to evict an alternative page. In the case where all pages in the buffer pool are dirty, you should throw a `DbException`.
 
-### 2.4\. Insertion and deletion
+Note that, in general, evicting a clean page that is locked by a running transaction is OK when using NO STEAL, as long as your lock manager keeps information about evicted pages around, and as long as none of your operator implementations keep references to `Page` objects which have been evicted.
 
-Now that you have written all of the `HeapFile` machinery to add and remove tuples, you will implement the `Insert` and `Delete` operators.
+**Exercise 3.** Implement the necessary logic for page eviction without evicting dirty pages in the `evictPage` method in `BufferPool`.
 
-For plans that implement `insert` and `delete` queries, the top-most operator is a special `Insert` or `Delete` operator that modifies the pages on disk. These operators return the number of affected tuples. This is implemented by returning a single tuple with one integer field, containing the count of affected records.
+### 2.7\. Transactions
 
-*   `Insert`: This operator adds the tuples it reads from its child operator to the `tableid` specified in its constructor. It should use the `BufferPool.insertTuple()` method to do this.
-*   `Delete`: This operator deletes the tuples it reads from its child operator from the `tableid` specified in its constructor. It should use the `BufferPool.deleteTuple()` method to do this.
+In SimpleDB, a `TransactionId` object is created at the beginning of each query. This object is passed to each of the operators involved in the query. When the query is complete, the `BufferPool` method `transactionComplete` is called.
 
-#### Exercise 4. Implement the skeleton methods in:
+Calling this method either _commits_ or _aborts_ the transaction, specified by the parameter flag `commit`. At any point during its execution, an operator may throw a `TransactionAbortedException` exception, which indicates an internal error or deadlock has occurred. The test cases we have provided you with create the appropriate `TransactionId` objects, pass them to your operators in the appropriate way, and invoke `transactionComplete` when a query is finished. We have also implemented `TransactionId`.
 
-*   `src/simpledb/Insert.java`
-*   `src/simpledb/Delete.java`
+**Exercise 4.** Implement the `transactionComplete()` method in `BufferPool`. Note that there are two versions of transactionComplete, one which accepts an additional boolean `commit` argument, and one which does not. The version without the additional argument should always commit and so can simply be implemented by calling `transactionComplete(tid, true)`.
 
-At this point, your code should pass the unit tests in InsertTest. We have not provided unit tests for `Delete`. Furthermore, you should be able to pass the `InsertTest` and `DeleteTest` system tests.
+When you commit, you should flush dirty pages associated to the transaction to disk. When you abort, you should revert any changes made by the transaction by restoring the page to its on-disk state.
 
-### 2.5\. Page eviction
+Whether the transaction commits or aborts, you should also release any state the `BufferPool` keeps regarding the transaction, including releasing any locks that the transaction held.
 
-In Lab 1, we did not correctly observe the limit on the maximum number of pages in the buffer pool defined by the constructor argument `numPages`. To address this shortcoming, you will choose a page eviction policy and instrument any previous code that reads or creates pages to implement your policy.
+At this point, your code should pass the `TransactionTest` unit test and the `AbortEvictionTest` system test. You may find the `TransactionTest` system test illustrative, but it will likely fail until you complete the next exercise.
 
-When more than `numPages` pages are in the buffer pool, one page should be evicted from the pool before the next is loaded. The choice of eviction policy is up to you; it is not necessary to do something sophisticated. Describe your policy in the lab writeup.
+### 2.8\. Deadlocks and Aborts
 
-Notice that `BufferPool` asks you to implement a `flushAllPages()` method. This is not something you would ever need in a real implementation of a buffer pool. However, we need this method for testing purposes. You should never call this method from any real code. Because of the way we have implemented `ScanTest.cacheTest`, you will need to ensure that your `flushPage` and `flushAllPages` methods do not evict pages from the buffer pool to properly pass this test. The `flushAllPages` method should call `flushPage` on all pages in the buffer pool, and `flushPage` should (i) write any dirty page to disk, (ii) mark written pages as being not dirty, and (iii) leave written pages in the BufferPool. The only method which should remove page from the buffer pool is `evictPage`, which should call `flushPage` on any dirty page it evicts.
+It is possible for transactions in SimpleDB to deadlock (if you do not understand why, we recommend reading about deadlocks in the book). You will need to detect this situation and throw a `TransactionAbortedException`.
 
-#### Exercise 5. Fill in the `flushPage()` method and additional helper methods to implement page eviction in:
+There are many possible ways to detect a deadlock. For example, you may implement a simple timeout policy that aborts a transaction if it has not completed after a given period of time. Alternately, you may implement cycle-detection in a dependency graph data structure. In this scheme, you would check for cycles in a dependency graph whenever you attempt to grant a new lock, and abort something if a cycle exists. Note that your implementation choice may significantly affect performance. Try different design options and see what happens.
 
-*   `src/simpledb/BufferPool.java`
+After you have detected that a deadlock exists, you must decide how to improve the situation. Assume you have detected a deadlock while transaction _t_ is waiting for a lock. If you're feeling homicidal, you might abort **all** transactions that _t_ is waiting for; this may result in a large amount of work being undone, but you can guarantee that _t_ will make progress. Alternately, you may decide to abort _t_ to give other transactions a chance to make progress. This means that the end-user will have to retry transaction _t_.
 
-If you did not implement `writePage()` in `HeapFile.java` above, you will also need to do that here. *For part 1 of this lab, you do not need to implement `writePage()`.*
+**Exercise 5.** Implement deadlock detection and resolution in `src/java/simpledb/BufferPool.java`. Most likely, you will want to check for a deadlock whenever a transaction attempts to acquire a lock and finds another transaction is holding the lock (note that this by itself is not a deadlock, but may be symptomatic of one.) You have many design decisions for your deadlock resolution system, but it is not necessary to do something complicated. Please describe your choices in the lab writeup.
 
-At this point, your code should pass the `EvictionTest` system test.
+You should ensure that your code aborts transactions properly when a deadlock occurs, by throwing a `TransactionAbortedException` exception. This exception will be caught by the code executing the transaction (e.g., `TransactionTest.java`), which should call `transactionComplete()` to cleanup after the transaction. You are not expected to automatically restart a transaction which fails due to a deadlock -- you can assume that higher level code will take care of this.
 
-Since we will not be checking for any particular eviction policy, this test works by creating a buffer pool with 16 pages (NOTE: while DEFAULT_PAGES is 50, we are initializing the BufferPool with less!), scanning a file with many more than 16 pages, and seeing if the memory usage of the JVM increases by more than 5 MB. If you do not implement an eviction policy correctly, you will not evict enough pages, and will go over the size limitation, thus failing the test.
+We have provided some (not-so-unit) tests in `test/simpledb/DeadlockTest.java`. They are actually a bit involved, so they may take more than a few seconds to run (depending on your policy). If they seem to hang indefinitely, then you probably have an unresolved deadlock. These tests construct simple deadlock situations that your code should be able to escape.
 
-You have now completed the code for this lab. Good work!
+Note that there are two timing parameters near the top of `DeadLockTest.java`; these determine the frequency at which the test checks if locks have been acquired and the waiting time before an aborted transaction is restarted. You may observe different performance characteristics by tweaking these parameters if you use a timeout-based detection method. The tests will output `TransactionAbortedExceptions` corresponding to resolved deadlocks to the console.
 
-### 2.6\. Query walkthrough
+Your code should now should pass the `TransactionTest` system test (which may also run for quite a long time).
 
-The following code implements a simple join query between two tables, each consisting of three columns of integers. (The file `some_data_file1.dat` and `some_data_file2.dat` are binary representation of the pages from this file.) This code is equivalent to the SQL statement:
+At this point, you should have a recoverable database, in the sense that if the database system crashes (at a point other than `transactionComplete()`) or if the user explicitly aborts a transaction, the effects of any running transaction will not be visible after the system restarts (or the transaction aborts). You may wish to verify this by running some transactions and explicitly killing the database server.
 
-```sql
-SELECT *
-  FROM some_data_file1, some_data_file2
-  WHERE some_data_file1.field1 = some_data_file2.field1
-  AND some_data_file1.id > 1
-```
+### 2.9\. Design alternatives
 
-For more extensive examples of query operations, you may find it helpful to browse the unit tests for joins, filters, and aggregates.
+During the course of this lab, we have identified three substantial design choices that you have to make:
 
-```java
-package simpledb;
-import java.io.*;
+*   Locking granularity: page-level versus tuple-level
+*   Deadlock detection: timeouts versus dependency graphs
+*   Deadlock resolution: aborting yourself versus aborting others
 
-public class jointest {
+**Bonus Exercise 6\. (10% extra credit)** For one or more of these choices, implement both alternatives and briefly compare their performance characteristics in your writeup.
 
-    public static void main(String[] argv) {
-        // construct a 3-column table schema
-        Type types[] = new Type[]{ Type.INT_TYPE, Type.INT_TYPE, Type.INT_TYPE };
-        String names[] = new String[]{ "field0", "field1", "field2" };
-
-        TupleDesc td = new TupleDesc(types, names);
-
-        // create the tables, associate them with the data files
-        // and tell the catalog about the schema  the tables.
-        HeapFile table1 = new HeapFile(new File("some_data_file1.dat"), td);
-        Database.getCatalog().addTable(table1, "t1");
-
-        HeapFile table2 = new HeapFile(new File("some_data_file2.dat"), td);
-        Database.getCatalog().addTable(table2, "t2");
-
-        // construct the query: we use two SeqScans, which spoonfeed
-        // tuples via iterators into join
-        TransactionId tid = new TransactionId();
-
-        SeqScan ss1 = new SeqScan(tid, table1.getId(), "t1");
-        SeqScan ss2 = new SeqScan(tid, table2.getId(), "t2");
-
-        // create a filter for the where condition
-        Filter sf1 = new Filter(
-                                new Predicate(0,
-                                Predicate.Op.GREATER_THAN, new IntField(1)),  ss1);
-
-        JoinPredicate p = new JoinPredicate(1, Predicate.Op.EQUALS, 1);
-        Join j = new Join(p, sf1, ss2);
-
-        // and run it
-        try {
-            j.open();
-            while (j.hasNext()) {
-                Tuple tup = j.next();
-                System.out.println(tup);
-            }
-            j.close();
-            Database.getBufferPool().transactionComplete(tid);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-    }
-
-}
-```
-
-Both tables have three integer fields. To express this, we create a `TupleDesc` object and pass it an array of `Type` objects indicating field types and `String` objects indicating field names. Once we have created this `TupleDesc`, we initialize two `HeapFile` objects representing the tables. Once we have created the tables, we add them to the catalog. (If this were a database server that was already running, we would have this catalog information loaded; we need to load this only for the purposes of this test.)
-
-Once we have finished initializing the database system, we create a query plan. Our plan consists of two `SeqScan` operators that scan the tuples from each file on disk, connected to a `Filter` operator on the first `HeapFile` instance, connected to a `Join` operator that joins the tuples in the tables according to the `JoinPredicate`. In general, these operators are instantiated with references to the appropriate table (in the case of `SeqScan`) or child operator (in the case of e.g., `Join`). The test program then repeatedly calls `next` on the `Join` operator, which in turn pulls tuples from its children. As tuples are output from the `Join`, they are printed out on the command line.
-
-### 2.7\. Query Parser and Contest
-
-We've provided you with a query parser for SimpleDB that you can use to write and run SQL queries against your database once you have completed the exercises in this lab.
-
-The first step is to create some data tables and a catalog. Suppose you have a file `data.txt` with the following contents:
-
-```
-1,10
-2,20
-3,30
-4,40
-5,50
-5,50
-```
-
-You can convert this into a SimpleDB table using the `convert` command (make sure to run `ant` first!):
-
-```sh
-$ java -jar dist/simpledb.jar convert data.txt 2 "int,int"
-```
-
-This creates a file `data.dat`. In addition to the table's raw data, the two additional parameters specify that each record has two fields and that their types are `int` and `int`.
-
-Next, create a catalog file, `catalog.txt`, with the following contents:
-
-```sql
-data (f1 int, f2 int)
-```
-
-This tells SimpleDB that there is one table, `data` (stored in `data.dat`) with two integer fields named `f1` and `f2`.
-
-Finally, invoke the parser. You must run java from the command line (ant doesn't work properly with interactive targets.) From your repository directory, execute:
-
-```sh
-$ java -jar dist/simpledb.jar parser catalog.txt
-```
-
-You should see output like:
-
-```sh
-Added table : data with schema INT(f1), INT(f2),
-SimpleDB>
-```
-
-Finally, you can run a query:
-
-```sql
-SimpleDB> select d.f1, d.f2 from data d;
-Started a new transaction tid = 1221852405823
- ADDING TABLE d(data) TO tableMap
-     TABLE HAS  tupleDesc INT(d.f1), INT(d.f2),
-1       10
-2       20
-3       30
-4       40
-5       50
-5       50
-
- 6 rows.
-----------------
-0.16 seconds
-
-SimpleDB>
-```
-
-The parser is relatively full featured (including support for SELECTs, INSERTs, DELETEs, and transactions), but does have some problems and does not necessarily report completely informative error messages. Here are some limitations to bear in mind:
-
-*   You must preface every field name with its table name, even if the field name is unique (you can use table name aliases, as in the example above, but you cannot use the `AS` keyword.)
-*   Nested queries are supported in the `WHERE` clause, but not the `FROM` clause.
-*   No arithmetic expressions are supported (for example, you can't take the sum of two fields.)
-*   At most one `GROUP BY` and one aggregate column are allowed.
-*   Set-oriented operators like `IN`, `UNION`, and `EXCEPT` are not allowed.
-*   Only `AND` expressions in the `WHERE` clause are allowed.
-*   `UPDATE` expressions are not supported.
-*   The string operator LIKE is allowed, but must be written out fully (that is, the Postgres tilde [~] shorthand is not allowed.)
-
-#### Exercise 7
-
-We have built a SimpleDB-encoded version of the DBLP database; the needed files are located at [http://www.cs.washington.edu/education/courses/cse444/16sp/labs/lab2/dblp_data.tar.gz](http://www.cs.washington.edu/education/courses/cse444/16sp/labs/lab2/dblp_data.tar.gz).
-
-You should download the file and unpack it. It will create four files in the `dblp_data` directory. Move them into your repository directory. The following commands will acomplish this, if you execute them at the root of your repository:
-
-```sh
-$ wget http://www.cs.washington.edu/education/courses/cse444/16sp/labs/lab2/dblp_data.tar.gz
-$ tar xvzf dblp_data.tar.gz
-$ mv dblp_data/* .
-$ rm -r dblp_data.tar.gz dblp_data
-```
-
-You can then run the parser with the following command. Make sure to first compile (i.e., run `ant dist`):
-
-```sh
-$ java -jar dist/simpledb.jar parser dblp_simpledb.schema
-```
-
-Execute the three queries below using your SimpleDB prototype and report the times in your lab write-up.
-
-#### Query 1
-```sql
-SELECT p.title
-    FROM papers p
-    WHERE p.title LIKE 'selectivity';
-```
-
-#### Query 2
-```sql
-SELECT p.title, v.name
-    FROM papers p, authors a, paperauths pa, venues v
-    WHERE a.name = 'E. F. Codd'
-    AND pa.authorid = a.id
-    AND pa.paperid = p.id
-    AND p.venueid = v.id;
-```
-
-#### Query 3
-```sql
-SELECT a2.name, count(p.id)
-    FROM papers p, authors a1, authors a2, paperauths pa1, paperauths pa2
-    WHERE a1.name = 'Michael Stonebraker'
-    AND pa1.authorid = a1.id
-    AND pa1.paperid = p.id
-    AND pa2.authorid = a2.id
-    AND pa1.paperid = pa2.paperid
-    GROUP BY a2.name
-    ORDER BY a2.name;
-```
-
-Note that each query will print out its runtime after it executes.
-
-
-#### Contest (Optional)
-
-We will start a thread on the course message board inviting anyone interested to post their runtimes for the above three queries (please run the queries on a lab machine and indicate which one you used so it becomes easier to compare runtimes). The contest is just for fun. It will not affect your grade.
-
-You may wish to create optimized implementations of some of the operators; in particular, a fast join operator (e.g., not nested loops!) will be essential for good performance on queries two and three.
-
-There is currently no optimizer in the parser, so the queries above have been written to cause the parser to generate reasonable plans. Here are some helpful hints about how the parser works that you may wish to exploit while running these queries:
-
-*   The table on the left side of the joins in these queries is passed in as the first `DbIterator` parameter to `Join`.
-*   Expressions in the `WHERE` clause are added to the plan from top to bottom, such that first expression will be the bottom-most operator in the generated query plan. For example, the generated plan for query 2 is:
-
-```sql
-Project(Join(Join(Filter(a),pa),p))
-```
-
-We ran our reference implementation on the `attu-3` node and obtained the following initial runtimes: Query 1 in 0.87 seconds, Query 2 in 3.7 seconds, and Query 3 in 13.29 seconds. We implemented a special-purpose join operator for equality joins but did little else to optimize performance.
+You have now completed this lab. Good work!
 
 ## 3\. Logistics
 
@@ -393,12 +182,10 @@ You must submit your code (see below) as well as a short (2 pages, maximum) writ
     **demonstrate your understanding** of the lab! If your description
     looks like a copy paste of the instructions or a copy-paste of the
     provided documentation you will lose points.
-* Describe any design decisions you made, including your choice of page eviction policy. If you used something other than a nested-loops join, describe the tradeoffs of the algorithm you chose.
-*	Give one example of a unit test that could be added to improve the
+*       Give one example of a unit test that could be added to improve the
     set of unit tests that we provided for this lab.
+*   Describe any design decisions you made, including your deadlock detection policy, locking granularity, etc.
 *   Discuss and justify any changes you made to the API.
-*   Describe any missing or incomplete elements of your code.
-*   Describe how long you spent on the lab, and whether there was anything you found particularly difficult or confusing.
 
 ### 3.1\. Collaboration
 
@@ -406,15 +193,12 @@ All CSE 444 labs are to be completed **INDIVIDUALLY**! However, you may discuss 
 
 ### 3.2\. Submitting your assignment
 
-You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab2-answers.txt` or `lab2-answers.pdf` in the top level of your repository.
-
-##### Please also **submit your runtimes** for the three queries in the contest. While the contest is optional, it is mandatory that your SimpleDB prototype be capable of executing these queries.
-###
+You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab3-answers.txt` or `lab3-answers.pdf` in the top level of your repository.
 
 **Important**: In order for your write-up to be added to the git repo, you need to explicitly add it:
 
 ```sh
-$ git add lab2-answers.txt
+$ git add lab3-answers.txt
 ```
 
 You also need to explicitly add any other files you create, such as new `*.java` files.
@@ -426,18 +210,18 @@ The criteria for your lab being submitted on time is that your code must be tagg
 There is a bash script `turnInLab.sh` in the root level directory of your repository that commits your changes, deletes any prior tag for the current lab, tags the current commit, and pushes the branch and tag to GitLab. If you are using Linux or Mac OSX, you should be able to run the following:
 
 ```sh
-$ ./turnInLab.sh lab2
+$ ./turnInLab.sh lab3
 ```
 
 You should see something like the following output:
 
 ```sh
-$ ./turnInLab.sh lab2
-[master b155ba0] Lab 2
+$ ./turnInLab.sh lab3
+[master b155ba0] Lab 3
  1 file changed, 1 insertion(+)
-Deleted tag 'lab2' (was b26abd0)
+Deleted tag 'lab3' (was b26abd0)
 To git@gitlab.com:cse444-16sp/simple-db-pirateninja.git
- - [deleted]         lab2
+ - [deleted]         lab3
 Counting objects: 11, done.
 Delta compression using up to 4 threads.
 Compressing objects: 100% (4/4), done.
@@ -449,14 +233,15 @@ Counting objects: 1, done.
 Writing objects: 100% (1/1), 152 bytes | 0 bytes/s, done.
 Total 1 (delta 0), reused 0 (delta 0)
 To git@gitlab.com:cse444-16sp/hsimple-db-pirateninja.git
- * [new tag]         lab2 -> lab2
+ * [new tag]         lab3 -> lab3
 ```
+
 
 ### 3.3\. Submitting a bug
 
 SimpleDB is a relatively complex piece of code. It is very possible you are going to find bugs, inconsistencies, and bad, outdated, or incorrect documentation, etc.
 
-We ask you, therefore, to do this lab with an adventurous mindset. Don't get mad if something is not clear, or even wrong; rather, try to figure it out yourself or send us a friendly email. Please submit (friendly!) bug reports to the course staff. When you do, please try to include:
+We ask you, therefore, to do this lab with an adventurous mindset. Don't get mad if something is not clear, or even wrong; rather, try to figure it out yourself or send us a friendly email. Please create (friendly!) issues reports on the repository website. When you do, please try to include:
 
 *   A description of the bug.
 *   A `.java` file we can drop in the `test/simpledb` directory, compile, and run.
@@ -468,7 +253,7 @@ You can also post on the class message boardif you feel you have run into a bug.
 
 50% of your grade will be based on whether or not your code passes the system test suite we will run over it. These tests will be a superset of the tests we have provided. Before handing in your code, you should make sure it produces no errors (passes all of the tests) from both `ant test` and `ant systemtest`.
 
-**Important:** before testing, we will replace your `build.xml`, `HeapFileEncoder.java`, and the entire contents of the `test/` directory with our version of these files! This means you cannot change the format of `.dat` files! You should therefore be careful changing our APIs. This also means you need to test whether your code compiles with our test programs. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
+**Important:** Before testing, we will replace your `build.xml`, `HeapFileEncoder.java`, and the entire contents of the `test/` directory with our version of these files! This means you cannot change the format of `.dat` files! You should therefore be careful changing our APIs. This also means you need to test whether your code compiles with our test programs. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
 
 ```sh
 $ git clone git@gitlab.com:cse444-16sp/simple-db-yourname
@@ -482,5 +267,3 @@ $ # [additional tests]
 If any of these commands fail, we'll be unhappy, and, therefore, so will your grade.
 
 An additional 50% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
-
-We've had a lot of fun designing this assignment, and we hope you enjoy hacking on it!
