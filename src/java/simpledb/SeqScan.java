@@ -34,7 +34,7 @@ public class SeqScan implements DbIterator {
     /**
      * Creates a sequential scan over the specified table as a part of the
      * specified transaction.
-     * 
+     *
      * @param tid
      *            The transaction this scan is running as a part of.
      * @param tableid
@@ -63,9 +63,9 @@ public class SeqScan implements DbIterator {
     public String getTableName() {
         return Database.getCatalog().getTableName(this.tableid);
     }
-    
+
     /**
-     * @return Return the alias of the table this operator scans. 
+     * @return Return the alias of the table this operator scans.
      * */
     public String getAlias() {
         // some code goes here
@@ -104,8 +104,9 @@ public class SeqScan implements DbIterator {
      * Returns the TupleDesc with field names from the underlying HeapFile,
      * prefixed with the tableAlias string from the constructor. This prefix
      * becomes useful when joining tables containing a field(s) with the same
-     * name.
-     * 
+     * name.  The alias and name should be separated with a "." character
+     * (e.g., "alias.fieldName").
+     *
      * @return the TupleDesc with field names from the underlying HeapFile,
      *         prefixed with the tableAlias string from the constructor.
      */
