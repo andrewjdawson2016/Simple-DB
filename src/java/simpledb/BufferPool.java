@@ -127,8 +127,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        this.lockManager.releaseAllLocks(tid);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
