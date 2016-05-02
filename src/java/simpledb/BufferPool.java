@@ -36,6 +36,11 @@ public class BufferPool {
      * Number of pages that BufferPool can hold
      */
     private int numPages;
+    
+    /**
+     * The lock manager used to keep track and grant locks
+     */
+    private LockManager lockManager;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -46,6 +51,7 @@ public class BufferPool {
         // some code goes here
     	this.cachedPages = new LinkedHashMap<PageId, Page>();
     	this.numPages = numPages;
+    	this.lockManager = new LockManager();
     }
     
     public static int getPageSize() {
@@ -79,7 +85,16 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        // some code goes here
+    	
+    	while (!this.lockManager.hasLock(tid, pid, perm)) {
+    		this.lockManager.acquireLock(tid, pid, perm);
+    		try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+    	}
+    	
     	if (this.cachedPages.containsKey(pid)) {
     		return this.cachedPages.get(pid);
     	}
@@ -103,8 +118,7 @@ public class BufferPool {
      * @param pid the ID of the page to unlock
      */
     public  void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2
+        this.lockManager.releaseLock(tid, pid);
     }
 
     /**
@@ -118,10 +132,8 @@ public class BufferPool {
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
-    public boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2
-        return false;
+    public boolean holdsLock(TransactionId tid, PageId pid) {
+        return this.lockManager.hasLock(tid, pid);
     }
 
     /**
