@@ -7,13 +7,13 @@ import java.util.Set;
 
 public class LockManager {
 	private Map<TransactionId, Set<PageId>> transactionLocks;
-	private Map<PageId, Integer> readLocks;
-	private Set<PageId> writeLocks;
+	private Map<PageId, Set<TransactionId>> readLocks;
+	private HashMap<PageId, TransactionId> writeLocks;
 	
 	public LockManager() {
 		this.transactionLocks = new HashMap<TransactionId, Set<PageId>>();
-		this.readLocks = new HashMap<PageId, Integer>();
-		this.writeLocks = new HashSet<PageId>();
+		this.readLocks = new HashMap<PageId, Set<TransactionId>>();
+		this.writeLocks = new HashMap<PageId, TransactionId>();
 	}
 	
 	/**
@@ -22,24 +22,31 @@ public class LockManager {
 	 * @param tid transactionId of the transaction requesting the lock
 	 * @param pid the page over which the lock is being requested
 	 * @param perm the permission level the transaction is requesting
+	 * @throws InterruptedException 
 	 */
-	public synchronized void acquireLock(TransactionId tid, PageId pid, Permissions perm) {
-		if (canAcquire(tid, pid, perm)) {
-			if (this.transactionLocks.containsKey(tid)) {
-				this.transactionLocks.get(tid).add(pid);
-			}
-			
-			if (perm == Permissions.READ_ONLY) {
-				if (this.readLocks.containsKey(pid)) {
-					int readLockCount = this.readLocks.get(pid);
-					this.readLocks.put(pid, readLockCount + 1);
-				} else {
-					this.readLocks.put(pid, 1);
-				}
-			} else {
-				this.writeLocks.add(pid);
-			}
+	public synchronized void acquireLock(TransactionId tid, PageId pid, Permissions perm) 
+			throws InterruptedException {
+		
+		while (!this.canAcquire(tid, pid, perm)) {
+			wait();
 		}
+		if (!this.transactionLocks.containsKey(tid)) {
+			this.transactionLocks.put(tid, new HashSet<PageId>());
+		}
+		this.transactionLocks.get(tid).add(pid);
+		
+		if (perm == Permissions.READ_ONLY) {
+			if (!this.readLocks.containsKey(pid)) {
+				this.readLocks.put(pid, new HashSet<TransactionId>());
+			}
+			this.readLocks.get(pid).add(tid);
+		} else {
+			if (this.canUpgrade(tid, pid)) {
+				this.readLocks.remove(pid);
+			}
+			this.writeLocks.put(pid, tid);
+		}
+		notifyAll();
 	}
 	
 	/**
@@ -49,13 +56,16 @@ public class LockManager {
 	 * @param pid the page over which the lock is being released
 	 */
 	public synchronized void releaseLock(TransactionId tid, PageId pid) {
-		if (this.transactionLocks.containsKey(tid) && this.transactionLocks.get(tid).contains(pid)) {
+		if (hasLock(tid, pid)) {
+			
 			this.transactionLocks.get(tid).remove(pid);
 			if (this.transactionLocks.get(tid).isEmpty()) {
 				this.transactionLocks.remove(tid);
 			}
-			removeLock(pid);
+			
+			this.removeLock(pid, tid);
 		}
+		notifyAll();
 	}
 	
 	/**
@@ -66,10 +76,11 @@ public class LockManager {
 	public synchronized void releaseAllLocks(TransactionId tid) {
 		if (this.transactionLocks.containsKey(tid)) {
 			for (PageId pid : this.transactionLocks.get(tid)) {
-				removeLock(pid);
+				this.removeLock(pid, tid);
 			}
 			this.transactionLocks.remove(tid);
 		}
+		notifyAll();
 	}
 	
 	/**
@@ -94,17 +105,11 @@ public class LockManager {
 	 * @return true if tid has a lock on page with pid with given permissions, false otherwise
 	 */
 	public synchronized boolean hasLock(TransactionId tid, PageId pid, Permissions perm) {
-		if (this.transactionLocks.containsKey(tid) && this.transactionLocks.get(tid).contains(pid)) {
-			if (perm == Permissions.READ_ONLY) {
-				return this.readLocks.containsKey(pid);
-			}
-			
-			if (perm == Permissions.READ_WRITE) {
-				return this.writeLocks.contains(pid);
-			}
+		if (perm == Permissions.READ_ONLY) {
+			return this.readLocks.containsKey(pid) && this.readLocks.get(pid).contains(tid);
+		} else {
+			return this.writeLocks.containsKey(pid) && (this.writeLocks.get(pid).equals(tid));
 		}
-		
-		return false;
 	}
 	
 	/**
@@ -123,31 +128,39 @@ public class LockManager {
 			return false;
 		}
 		
-		boolean pageNotLocked = (!this.readLocks.containsKey(pid)) && (!this.writeLocks.contains(pid));
-		boolean onlyReads = (!this.writeLocks.contains(pid)) && (perm == Permissions.READ_ONLY);
+		boolean pageNotLocked = (!this.readLocks.containsKey(pid)) && (!this.writeLocks.containsKey(pid));
+		boolean onlyReads = (!this.writeLocks.containsKey(pid)) && (perm == Permissions.READ_ONLY);
 		if (pageNotLocked || onlyReads) {
 			return true;
 		}
 		
-		if (!this.writeLocks.contains(pid) && this.readLocks.containsKey(pid) && 
-				this.readLocks.get(pid) == 1 && this.transactionLocks.get(tid).contains(pid) &&
-				perm == Permissions.READ_WRITE) {
+		if ((perm == Permissions.READ_WRITE) && this.canUpgrade(tid, pid)) {
 			return true;
 		}
 		
 		return false;
 	}
 	
+	// Helper method to check if a tid can be upgraded
+	private synchronized boolean canUpgrade(TransactionId tid, PageId pid) {
+		return this.transactionLocks.containsKey(tid)
+				&& this.transactionLocks.get(tid).contains(pid)
+				&& this.readLocks.containsKey(pid)
+				&& this.readLocks.get(pid).contains(tid)
+				&& (this.readLocks.get(pid).size() == 1)
+				&& (!this.writeLocks.containsKey(pid));
+	}
+	
 	// Helper method to release locks, removes readLocks or writeLocks without affecting this.transactionLocks
-	private synchronized void removeLock(PageId pid) {
-		if (this.readLocks.containsKey(pid)) {
-			int readLockCount = this.readLocks.get(pid);
-			if (readLockCount < 2) {
+	private synchronized void removeLock(PageId pid, TransactionId tid) {
+		if (this.readLocks.containsKey(pid) && this.readLocks.get(pid).contains(tid)) {
+			this.readLocks.get(pid).remove(tid);
+			if (this.readLocks.get(pid).isEmpty()) {
 				this.readLocks.remove(pid);
-			} else {
-				this.readLocks.put(pid, readLockCount - 1);
 			}
-		} else {
+		}
+		
+		if (this.writeLocks.containsKey(pid) && (this.writeLocks.get(pid).equals(tid))) {
 			this.writeLocks.remove(pid);
 		}
 	}
