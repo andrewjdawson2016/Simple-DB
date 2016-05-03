@@ -26,25 +26,25 @@ public class LockManager {
 	 */
 	public synchronized void acquireLock(TransactionId tid, PageId pid, Permissions perm) 
 			throws InterruptedException {
-		
-		while (!this.canAcquire(tid, pid, perm)) {
-			wait();
-		}
-		if (!this.transactionLocks.containsKey(tid)) {
-			this.transactionLocks.put(tid, new HashSet<PageId>());
-		}
-		this.transactionLocks.get(tid).add(pid);
-		
-		if (perm == Permissions.READ_ONLY) {
-			if (!this.readLocks.containsKey(pid)) {
-				this.readLocks.put(pid, new HashSet<TransactionId>());
+
+		if (!this.hasLock(tid, pid, perm)) {
+			
+			while (!this.canAcquire(tid, pid, perm)) {
+				wait();
 			}
-			this.readLocks.get(pid).add(tid);
-		} else {
-			if (this.canUpgrade(tid, pid)) {
-				this.readLocks.remove(pid);
+			if (!this.transactionLocks.containsKey(tid)) {
+				this.transactionLocks.put(tid, new HashSet<PageId>());
 			}
-			this.writeLocks.put(pid, tid);
+			this.transactionLocks.get(tid).add(pid);
+			
+			if (perm == Permissions.READ_ONLY) {
+				if (!this.readLocks.containsKey(pid)) {
+					this.readLocks.put(pid, new HashSet<TransactionId>());
+				}
+				this.readLocks.get(pid).add(tid);
+			} else {
+				this.writeLocks.put(pid, tid);
+			}
 		}
 		notifyAll();
 	}
@@ -114,18 +114,18 @@ public class LockManager {
 	
 	/**
 	 * Returns true if the lock with pid is available, to be acquired by tid with given permissions
-	 * Returns false if tid already has lock on pid
+	 * Returns true if tid already holds the given lock
 	 * 
 	 * @param tid the transactionId of the transaction checking availability
 	 * @param pid the page being checked for availability
 	 * @param perm the permission level for which the request is checking
 	 * 
 	 * @return true if the lock with pid is available, to be acquired by tid with given permissions
-	 * Returns false if tid already has lock on pid
+	 * Returns true if tid already holds the given lock
 	 */
 	public synchronized boolean canAcquire(TransactionId tid, PageId pid, Permissions perm) {
 		if (this.hasLock(tid, pid, perm)) {
-			return false;
+			return true;
 		}
 		
 		boolean pageNotLocked = (!this.readLocks.containsKey(pid)) && (!this.writeLocks.containsKey(pid));
@@ -135,6 +135,10 @@ public class LockManager {
 		}
 		
 		if ((perm == Permissions.READ_WRITE) && this.canUpgrade(tid, pid)) {
+			return true;
+		}
+		
+		if ((perm == Permissions.READ_ONLY) && this.canDowngrade(tid, pid)) {
 			return true;
 		}
 		
@@ -149,6 +153,14 @@ public class LockManager {
 				&& this.readLocks.get(pid).contains(tid)
 				&& (this.readLocks.get(pid).size() == 1)
 				&& (!this.writeLocks.containsKey(pid));
+	}
+	
+	// Helper method to check if a tid can be down-graded to shared lock
+	private synchronized boolean canDowngrade(TransactionId tid, PageId pid) {
+		return this.transactionLocks.containsKey(tid)
+				&& this.transactionLocks.get(tid).contains(pid)
+				&& this.writeLocks.containsKey(pid)
+				&& this.writeLocks.get(pid).equals(tid);
 	}
 	
 	// Helper method to release locks, removes readLocks or writeLocks without affecting this.transactionLocks
