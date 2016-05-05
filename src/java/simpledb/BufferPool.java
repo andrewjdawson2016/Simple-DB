@@ -277,7 +277,7 @@ public class BufferPool {
 			Page currOldest = this.cachedPages.get(currPageId);
 			if (currOldest.isDirty() == null) {
 	    		try {
-					flushPage(currOldest.getId());
+					flushPage(currPageId);
 					this.cachedPages.remove(currOldest);
 					evictedPage = true;
 				} catch (IOException e) {

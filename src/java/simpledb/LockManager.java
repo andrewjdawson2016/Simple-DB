@@ -23,14 +23,19 @@ public class LockManager {
 	 * @param pid the page over which the lock is being requested
 	 * @param perm the permission level the transaction is requesting
 	 * @throws InterruptedException 
+	 * @throws TransactionAbortedException if deadlock was detected
 	 */
 	public synchronized void acquireLock(TransactionId tid, PageId pid, Permissions perm) 
-			throws InterruptedException {
+			throws InterruptedException, TransactionAbortedException {
 
 		if (!this.hasLock(tid, pid, perm)) {
-			
+			long startTime = System.currentTimeMillis();
 			while (!this.canAcquire(tid, pid, perm)) {
-				wait();
+				wait(50);
+				long totalWaitTime = System.currentTimeMillis() - startTime;
+				if (totalWaitTime > 25000) {
+					throw new TransactionAbortedException();
+				}
 			}
 			if (!this.transactionLocks.containsKey(tid)) {
 				this.transactionLocks.put(tid, new HashSet<PageId>());
