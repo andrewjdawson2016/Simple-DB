@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -252,14 +253,19 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-    	if (!this.cachedPages.isEmpty()) {
-    		PageId oldestPageId = this.cachedPages.keySet().iterator().next();
-    		try {
-				flushPage(oldestPageId);
-				this.cachedPages.remove(oldestPageId);
-			} catch (IOException e) {
-				e.printStackTrace();
+		Iterator<PageId> pageIdIterator = this.cachedPages.keySet().iterator();
+		while (pageIdIterator.hasNext()) {
+			Page currOldest = this.cachedPages.get(pageIdIterator.next());
+			if (currOldest.isDirty() == null) {
+	    		try {
+					flushPage(currOldest.getId());
+					this.cachedPages.remove(currOldest);
+				} catch (IOException e) {
+					throw new DbException("Buffer Pool failed to evict page with "
+							+ "page id: " + currOldest.getId());
+				}
 			}
-    	}
+		}
+    	throw new DbException("Buffer Pool could not evict any pages");
     }
 }
