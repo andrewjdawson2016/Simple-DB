@@ -2,7 +2,6 @@ package simpledb;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -142,8 +141,23 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+    	
+    	if (commit) {
+    		flushPages(tid);
+    	} else {
+    		for (PageId currPageId : this.cachedPages.keySet()) {
+            	Page currPage = this.cachedPages.get(currPageId);
+            	TransactionId currPageTid = currPage.isDirty();
+            	if (currPageTid != null && currPageTid.equals(tid)) {
+            		DbFile fileOfPage = Database.getCatalog().getDatabaseFile(currPageId.getTableId());
+                    Page diskPage = fileOfPage.readPage(currPageId);
+                    diskPage.markDirty(false, tid);
+                    this.cachedPages.remove(currPageId);
+                    this.cachedPages.put(diskPage.getId(), diskPage);
+            	}
+    		}
+    	}
+    	this.lockManager.releaseAllLocks(tid);
     }
 
     /**
@@ -244,8 +258,13 @@ public class BufferPool {
     /** Write all pages of the specified transaction to disk.
      */
     public synchronized  void flushPages(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        for (PageId currPageId : this.cachedPages.keySet()) {
+        	Page currPage = this.cachedPages.get(currPageId);
+        	TransactionId currPageTid = currPage.isDirty();
+        	if (currPageTid != null && currPageTid.equals(tid)) {
+        		flushPage(currPageId);
+        	}
+        }
     }
 
     /**
@@ -253,19 +272,22 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-		Iterator<PageId> pageIdIterator = this.cachedPages.keySet().iterator();
-		while (pageIdIterator.hasNext()) {
-			Page currOldest = this.cachedPages.get(pageIdIterator.next());
+    	boolean evictedPage = false;
+		for (PageId currPageId : this.cachedPages.keySet()) {
+			Page currOldest = this.cachedPages.get(currPageId);
 			if (currOldest.isDirty() == null) {
 	    		try {
 					flushPage(currOldest.getId());
 					this.cachedPages.remove(currOldest);
+					evictedPage = true;
 				} catch (IOException e) {
 					throw new DbException("Buffer Pool failed to evict page with "
 							+ "page id: " + currOldest.getId());
 				}
 			}
 		}
-    	throw new DbException("Buffer Pool could not evict any pages");
+		if (!evictedPage) {
+			throw new DbException("Buffer Pool could not evict any pages");
+		}
     }
 }
