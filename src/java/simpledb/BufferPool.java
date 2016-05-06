@@ -48,7 +48,6 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
     	this.cachedPages = new LinkedHashMap<PageId, Page>();
     	this.numPages = numPages;
     	this.lockManager = new LockManager();
@@ -95,7 +94,7 @@ public class BufferPool {
     	if (this.cachedPages.containsKey(pid)) {
     		return this.cachedPages.get(pid);
     	}
-        if (this.cachedPages.size() == this.numPages) {
+        while (this.cachedPages.size() >= this.numPages) {
         	evictPage();
         }
         
@@ -124,7 +123,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-    	transactionComplete(tid, true);
+    	this.transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -145,17 +144,20 @@ public class BufferPool {
     	if (commit) {
     		flushPages(tid);
     	} else {
+    		PageId toRemove = null;
+    		Page diskPage = null;
     		for (PageId currPageId : this.cachedPages.keySet()) {
             	Page currPage = this.cachedPages.get(currPageId);
             	TransactionId currPageTid = currPage.isDirty();
             	if (currPageTid != null && currPageTid.equals(tid)) {
             		DbFile fileOfPage = Database.getCatalog().getDatabaseFile(currPageId.getTableId());
-                    Page diskPage = fileOfPage.readPage(currPageId);
+                    diskPage = fileOfPage.readPage(currPageId);
                     diskPage.markDirty(false, tid);
-                    this.cachedPages.remove(currPageId);
-                    this.cachedPages.put(diskPage.getId(), diskPage);
+                    toRemove = currPageId;
             	}
     		}
+            this.cachedPages.remove(toRemove);
+            this.cachedPages.put(diskPage.getId(), diskPage);
     	}
     	this.lockManager.releaseAllLocks(tid);
     }
@@ -181,10 +183,10 @@ public class BufferPool {
     	ArrayList<Page> dirtiedPages = dbFile.insertTuple(tid, t);
     	for (Page currPage : dirtiedPages) {
     		currPage.markDirty(true, tid);
-    	}
-    	for (Page currPage : dirtiedPages) {
-    		if (this.cachedPages.size() == this.numPages) {
-    			evictPage();
+    		if (!this.cachedPages.containsKey(currPage.getId())) {
+        		while (this.cachedPages.size() >= this.numPages) {
+        			evictPage();
+        		}
     		}
     		this.cachedPages.put(currPage.getId(), currPage);
     	}
@@ -210,10 +212,10 @@ public class BufferPool {
     	ArrayList<Page> dirtiedPages = dbFile.deleteTuple(tid, t);
     	for (Page currPage : dirtiedPages) {
     		currPage.markDirty(true, tid);
-    	}
-    	for (Page currPage : dirtiedPages) {
-    		if (this.cachedPages.size() == this.numPages) {
-    			evictPage();
+    		if (!this.cachedPages.containsKey(currPage.getId())) {
+        		while (this.cachedPages.size() >= this.numPages) {
+        			evictPage();
+        		}
     		}
     		this.cachedPages.put(currPage.getId(), currPage);
     	}
@@ -273,21 +275,20 @@ public class BufferPool {
      */
     private synchronized  void evictPage() throws DbException {
     	boolean evictedPage = false;
+    	PageId toRemove = null;
 		for (PageId currPageId : this.cachedPages.keySet()) {
 			Page currOldest = this.cachedPages.get(currPageId);
 			if (currOldest.isDirty() == null) {
-	    		try {
-					flushPage(currPageId);
-					this.cachedPages.remove(currOldest);
-					evictedPage = true;
-				} catch (IOException e) {
-					throw new DbException("Buffer Pool failed to evict page with "
-							+ "page id: " + currOldest.getId());
-				}
+				toRemove = currPageId;
+				evictedPage = true;
+				break;
 			}
 		}
 		if (!evictedPage) {
+			System.out.println("got here");
 			throw new DbException("Buffer Pool could not evict any pages");
+		} else {
+			this.cachedPages.remove(toRemove);
 		}
     }
 }
