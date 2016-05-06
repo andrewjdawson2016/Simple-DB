@@ -3,6 +3,7 @@ package simpledb;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -144,20 +145,22 @@ public class BufferPool {
     	if (commit) {
     		flushPages(tid);
     	} else {
-    		PageId toRemove = null;
-    		Page diskPage = null;
+    		List<PageId> toRevert = new ArrayList<PageId>();
     		for (PageId currPageId : this.cachedPages.keySet()) {
             	Page currPage = this.cachedPages.get(currPageId);
             	TransactionId currPageTid = currPage.isDirty();
             	if (currPageTid != null && currPageTid.equals(tid)) {
-            		DbFile fileOfPage = Database.getCatalog().getDatabaseFile(currPageId.getTableId());
-                    diskPage = fileOfPage.readPage(currPageId);
-                    diskPage.markDirty(false, tid);
-                    toRemove = currPageId;
+            		toRevert.add(currPageId);
             	}
     		}
-            this.cachedPages.remove(toRemove);
-            this.cachedPages.put(diskPage.getId(), diskPage);
+    		
+    		for (PageId currToRevert : toRevert) {
+        		DbFile fileOfPage = Database.getCatalog().getDatabaseFile(currToRevert.getTableId());
+                Page diskPage = fileOfPage.readPage(currToRevert);
+                diskPage.markDirty(false, null);
+                this.cachedPages.remove(currToRevert);
+                this.cachedPages.put(diskPage.getId(), diskPage);
+    		}
     	}
     	this.lockManager.releaseAllLocks(tid);
     }
@@ -285,7 +288,6 @@ public class BufferPool {
 			}
 		}
 		if (!evictedPage) {
-			System.out.println("got here");
 			throw new DbException("Buffer Pool could not evict any pages");
 		} else {
 			this.cachedPages.remove(toRemove);
