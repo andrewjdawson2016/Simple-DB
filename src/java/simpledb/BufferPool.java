@@ -87,9 +87,11 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
 
 		this.lockManager.acquireLock(tid, pid, perm);
+		
     	if (this.cachedPages.containsKey(pid)) {
     		return this.cachedPages.get(pid);
     	}
+    	
         while (this.cachedPages.size() >= this.numPages) {
         	evictPage();
         }
@@ -137,7 +139,6 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
     	if (commit) {
-    		System.out.println("committed transaction");
     		flushPages(tid);
     	} else {
     		List<PageId> toRevert = new ArrayList<PageId>();
