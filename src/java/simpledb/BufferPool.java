@@ -41,7 +41,7 @@ public class BufferPool {
     /**
      * The lock manager used to keep track and grant locks
      */
-    private LockManager lockManager;
+    public LockManager lockManager;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -85,13 +85,8 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-    	
-		try {
-			this.lockManager.acquireLock(tid, pid, perm);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			throw new TransactionAbortedException();
-		}
+
+		this.lockManager.acquireLock(tid, pid, perm);
     	if (this.cachedPages.containsKey(pid)) {
     		return this.cachedPages.get(pid);
     	}
@@ -141,8 +136,8 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-    	
     	if (commit) {
+    		System.out.println("committed transaction");
     		flushPages(tid);
     	} else {
     		List<PageId> toRevert = new ArrayList<PageId>();

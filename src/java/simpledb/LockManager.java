@@ -6,9 +6,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class LockManager {
-	private Map<TransactionId, Set<PageId>> transactionLocks;
-	private Map<PageId, Set<TransactionId>> readLocks;
-	private HashMap<PageId, TransactionId> writeLocks;
+	public Map<TransactionId, Set<PageId>> transactionLocks;
+	public Map<PageId, Set<TransactionId>> readLocks;
+	public HashMap<PageId, TransactionId> writeLocks;
 	
 	public LockManager() {
 		this.transactionLocks = new HashMap<TransactionId, Set<PageId>>();
@@ -26,17 +26,23 @@ public class LockManager {
 	 * @throws TransactionAbortedException if deadlock was detected
 	 */
 	public synchronized void acquireLock(TransactionId tid, PageId pid, Permissions perm) 
-			throws InterruptedException, TransactionAbortedException {
+			throws TransactionAbortedException {
 
 		if (!this.hasLock(tid, pid, perm)) {
 			long startTime = System.currentTimeMillis();
 			while (!this.canAcquire(tid, pid, perm)) {
-				wait(50);
+				try {
+					wait(50);
+				} catch (InterruptedException e) {
+					throw new TransactionAbortedException();
+				}
 				long totalWaitTime = System.currentTimeMillis() - startTime;
-				if (totalWaitTime > 25000) {
+				if (totalWaitTime > 2500) {
 					throw new TransactionAbortedException();
 				}
 			}
+			
+			// here allowed to acquire lock
 			if (!this.transactionLocks.containsKey(tid)) {
 				this.transactionLocks.put(tid, new HashSet<PageId>());
 			}
@@ -111,9 +117,10 @@ public class LockManager {
 	 */
 	public synchronized boolean hasLock(TransactionId tid, PageId pid, Permissions perm) {
 		if (perm == Permissions.READ_ONLY) {
-			return this.readLocks.containsKey(pid) && this.readLocks.get(pid).contains(tid);
+			return (this.readLocks.containsKey(pid) && this.readLocks.get(pid).contains(tid))
+					|| (this.writeLocks.containsKey(pid) && this.writeLocks.get(pid).equals(tid));
 		} else {
-			return this.writeLocks.containsKey(pid) && (this.writeLocks.get(pid).equals(tid));
+			return this.writeLocks.containsKey(pid) && this.writeLocks.get(pid).equals(tid);
 		}
 	}
 	
@@ -143,10 +150,6 @@ public class LockManager {
 			return true;
 		}
 		
-		if ((perm == Permissions.READ_ONLY) && this.canDowngrade(tid, pid)) {
-			return true;
-		}
-		
 		return false;
 	}
 	
@@ -160,14 +163,6 @@ public class LockManager {
 				&& (!this.writeLocks.containsKey(pid));
 	}
 	
-	// Helper method to check if a tid can be down-graded to shared lock
-	private synchronized boolean canDowngrade(TransactionId tid, PageId pid) {
-		return this.transactionLocks.containsKey(tid)
-				&& this.transactionLocks.get(tid).contains(pid)
-				&& this.writeLocks.containsKey(pid)
-				&& this.writeLocks.get(pid).equals(tid);
-	}
-	
 	// Helper method to release locks, removes readLocks or writeLocks without affecting this.transactionLocks
 	private synchronized void removeLock(PageId pid, TransactionId tid) {
 		if (this.readLocks.containsKey(pid) && this.readLocks.get(pid).contains(tid)) {
@@ -177,8 +172,16 @@ public class LockManager {
 			}
 		}
 		
-		if (this.writeLocks.containsKey(pid) && (this.writeLocks.get(pid).equals(tid))) {
+		if (this.writeLocks.containsKey(pid) && this.writeLocks.get(pid).equals(tid)) {
 			this.writeLocks.remove(pid);
+		}
+	}
+	
+	public synchronized int countTidRemoveLater(TransactionId tid) {
+		if (this.transactionLocks.containsKey(tid)) {
+			return this.transactionLocks.get(tid).size();
+		} else {
+			return 0;
 		}
 	}
 }
