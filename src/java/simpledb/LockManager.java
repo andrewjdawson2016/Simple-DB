@@ -24,7 +24,7 @@ public class LockManager {
 	 * @param pid the page over which the lock is being requested
 	 * @param perm the permission level the transaction is requesting
 	 * @throws InterruptedException 
-	 * @throws TransactionAbortedException if deadlock was detected
+	 * @throws TransactionAbortedException if deadlock was detected.
 	 */
 	public synchronized boolean acquireLock(TransactionId tid, PageId pid, Permissions perm) {
 
