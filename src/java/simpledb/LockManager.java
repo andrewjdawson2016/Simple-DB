@@ -34,7 +34,7 @@ public class LockManager {
 		long startTime = System.currentTimeMillis();
 		while (!this.canAcquire(tid, pid, perm)) {
 			long totalWaitTime = System.currentTimeMillis() - startTime;
-			if (totalWaitTime > 500) {
+			if (totalWaitTime > 1500) {
 				return false;
 			}
 		}

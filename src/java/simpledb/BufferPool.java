@@ -269,9 +269,11 @@ public class BufferPool {
     public synchronized  void flushPages(TransactionId tid) throws IOException {
         for (PageId currPageId : this.cachedPages.keySet()) {
         	Page currPage = this.cachedPages.get(currPageId);
-        	TransactionId currPageTid = currPage.isDirty();
-        	if (currPageTid != null && currPageTid.equals(tid)) {
-        		flushPage(currPageId);
+        	if (currPage != null) {
+	        	TransactionId currPageTid = currPage.isDirty();
+	        	if (currPageTid != null && currPageTid.equals(tid)) {
+	        		flushPage(currPageId);
+	        	}
         	}
         }
     }
