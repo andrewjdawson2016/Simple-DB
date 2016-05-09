@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * BufferPool manages the reading and writing of pages into memory from
  * disk. Access methods call into it to retrieve pages, and it fetches
- * pages from the appropriate location.
+ * pages from the appropriate location
  * <p>
  * The BufferPool is also responsible for locking;  when a transaction fetches
  * a page, BufferPool checks that the transaction has the appropriate
