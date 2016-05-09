@@ -85,8 +85,16 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-
-		this.lockManager.acquireLock(tid, pid, perm);
+    	
+    	boolean acquiredLock = this.lockManager.acquireLock(tid, pid, perm);
+    	if (!acquiredLock) {
+    		try {
+				this.transactionComplete(tid, false);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+    		throw new TransactionAbortedException();
+    	}
 		
     	if (this.cachedPages.containsKey(pid)) {
     		return this.cachedPages.get(pid);

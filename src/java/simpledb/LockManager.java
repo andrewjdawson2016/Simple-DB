@@ -25,39 +25,35 @@ public class LockManager {
 	 * @throws InterruptedException 
 	 * @throws TransactionAbortedException if deadlock was detected
 	 */
-	public synchronized void acquireLock(TransactionId tid, PageId pid, Permissions perm) 
-			throws TransactionAbortedException {
+	public synchronized boolean acquireLock(TransactionId tid, PageId pid, Permissions perm) {
 
-		if (!this.hasLock(tid, pid, perm)) {
-			long startTime = System.currentTimeMillis();
-			while (!this.canAcquire(tid, pid, perm)) {
-				try {
-					wait(50);
-				} catch (InterruptedException e) {
-					throw new TransactionAbortedException();
-				}
-				long totalWaitTime = System.currentTimeMillis() - startTime;
-				if (totalWaitTime > 2500) {
-					throw new TransactionAbortedException();
-				}
-			}
-			
-			// here allowed to acquire lock
-			if (!this.transactionLocks.containsKey(tid)) {
-				this.transactionLocks.put(tid, new HashSet<PageId>());
-			}
-			this.transactionLocks.get(tid).add(pid);
-			
-			if (perm == Permissions.READ_ONLY) {
-				if (!this.readLocks.containsKey(pid)) {
-					this.readLocks.put(pid, new HashSet<TransactionId>());
-				}
-				this.readLocks.get(pid).add(tid);
-			} else {
-				this.writeLocks.put(pid, tid);
+		if (this.hasLock(tid, pid, perm)) {
+			return true;
+		}
+		
+		long startTime = System.currentTimeMillis();
+		while (!this.canAcquire(tid, pid, perm)) {
+			long totalWaitTime = System.currentTimeMillis() - startTime;
+			if (totalWaitTime > 500) {
+				return false;
 			}
 		}
-		notifyAll();
+		
+		// here allowed to acquire lock
+		if (!this.transactionLocks.containsKey(tid)) {
+			this.transactionLocks.put(tid, new HashSet<PageId>());
+		}
+		this.transactionLocks.get(tid).add(pid);
+		
+		if (perm == Permissions.READ_ONLY) {
+			if (!this.readLocks.containsKey(pid)) {
+				this.readLocks.put(pid, new HashSet<TransactionId>());
+			}
+			this.readLocks.get(pid).add(tid);
+		} else {
+			this.writeLocks.put(pid, tid);
+		}
+		return true;
 	}
 	
 	/**
