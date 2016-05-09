@@ -34,8 +34,13 @@ public class LockManager {
 		
 		long startTime = System.currentTimeMillis();
 		Random random = new Random();
-		long timeOut = random.nextInt(100) + 1000l;
+		long timeOut = random.nextInt(5000) + 2000;
 		while (!this.canAcquire(tid, pid, perm)) {
+			try {
+				wait(100);
+			} catch (InterruptedException e) {
+				return false;
+			}
 			long totalWaitTime = System.currentTimeMillis() - startTime;
 			if (totalWaitTime > timeOut) {
 				return false;
