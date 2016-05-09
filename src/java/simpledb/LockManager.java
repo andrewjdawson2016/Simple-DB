@@ -3,6 +3,7 @@ package simpledb;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 public class LockManager {
@@ -32,9 +33,11 @@ public class LockManager {
 		}
 		
 		long startTime = System.currentTimeMillis();
+		Random random = new Random();
+		long timeOut = random.nextInt(100) + 1000l;
 		while (!this.canAcquire(tid, pid, perm)) {
 			long totalWaitTime = System.currentTimeMillis() - startTime;
-			if (totalWaitTime > 1500) {
+			if (totalWaitTime > timeOut) {
 				return false;
 			}
 		}
