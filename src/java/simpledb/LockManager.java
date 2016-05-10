@@ -3,13 +3,12 @@ package simpledb;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 
 public class LockManager {
-	public Map<TransactionId, Set<PageId>> transactionLocks;
-	public Map<PageId, Set<TransactionId>> readLocks;
-	public HashMap<PageId, TransactionId> writeLocks;
+	private Map<TransactionId, Set<PageId>> transactionLocks;
+	private Map<PageId, Set<TransactionId>> readLocks;
+	private HashMap<PageId, TransactionId> writeLocks;
 	
 	public LockManager() {
 		this.transactionLocks = new HashMap<TransactionId, Set<PageId>>();
@@ -46,7 +45,6 @@ public class LockManager {
 			}
 		}
 		
-		// here allowed to acquire lock
 		if (!this.transactionLocks.containsKey(tid)) {
 			this.transactionLocks.put(tid, new HashSet<PageId>());
 		}
@@ -106,7 +104,8 @@ public class LockManager {
 	 * @return true if tid has a read lock or a write lock on page with pid, false otherwise
 	 */
 	public synchronized boolean hasLock(TransactionId tid, PageId pid) {
-		return this.transactionLocks.containsKey(tid) && this.transactionLocks.get(tid).contains(pid);
+		return this.transactionLocks.containsKey(tid) && 
+				this.transactionLocks.get(tid).contains(pid);
 	}
 	
 	/**
@@ -143,8 +142,10 @@ public class LockManager {
 			return true;
 		}
 		
-		boolean pageNotLocked = (!this.readLocks.containsKey(pid)) && (!this.writeLocks.containsKey(pid));
-		boolean onlyReads = (!this.writeLocks.containsKey(pid)) && (perm == Permissions.READ_ONLY);
+		boolean pageNotLocked = (!this.readLocks.containsKey(pid)) && 
+				(!this.writeLocks.containsKey(pid));
+		boolean onlyReads = (!this.writeLocks.containsKey(pid)) && 
+				(perm == Permissions.READ_ONLY);
 		if (pageNotLocked || onlyReads) {
 			return true;
 		}
@@ -177,14 +178,6 @@ public class LockManager {
 		
 		if (this.writeLocks.containsKey(pid) && this.writeLocks.get(pid).equals(tid)) {
 			this.writeLocks.remove(pid);
-		}
-	}
-	
-	public synchronized int countTidRemoveLater(TransactionId tid) {
-		if (this.transactionLocks.containsKey(tid)) {
-			return this.transactionLocks.get(tid).size();
-		} else {
-			return 0;
 		}
 	}
 }

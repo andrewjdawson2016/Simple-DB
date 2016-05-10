@@ -41,7 +41,7 @@ public class BufferPool {
     /**
      * The lock manager used to keep track and grant locks
      */
-    public LockManager lockManager;
+    private LockManager lockManager;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
