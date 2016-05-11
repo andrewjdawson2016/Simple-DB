@@ -43,15 +43,15 @@ You will next need to make the following changes to your existing code:
 
 This causes the logging system to write an update to the log. We force the log to ensure the log record is on disk before the page is written to disk.
 
-2. Your `BufferPool.transactionComplete()` calls `flushPage()` for each page that a committed transaction dirtied. For each such page, add a call to `p.setBeforeImage()` after you have flushed the page:
+2. You `Transaction::transactionComplete()` calls `flushPages()`. Remove it. We no longer need to force pages to disk at commit time. Your `BufferPool.transactionComplete()` calls `flushPage()` for each page that a committed transaction dirtied. Remove the calls to `flushPage()`. We no longer need to force pages to disk at commit time. However, for each of these dirtied pages, we now need to add a call to `logWrite(tid, p.beforeImage(), p)` and then, of course, force the log to disk. We need to make sure that we can redo the changes to all dirtied pages even if they were never flushed to disk. Finally, add a call to `p.setBeforeImage()`.
 
-```java
-    // use current page contents as the before-image
-    // for the next transaction that modifies this page.
-    p.setBeforeImage();
-```
+        // use current page contents as the before-image
+        // for the next transaction that modifies this page.
+        p.setBeforeImage();
 
-After an update is committed, a page's before-image needs to be updated so that later transactions that abort rollback to this committed version of the page. (Note: We can't just call `setBeforeImage()` in `flushPage()`, since `flushPage()` might be called even if a transaction isn't committing. Our test case actually does that! If you implemented `transactionComplete()` by calling `flushPages()` instead, you may need to pass an additional argument to `flushPages()` to tell it whether the flush is being done for a committing transaction or not. However, we strongly suggest in this case you simply rewrite `transactionComplete()` to use `flushPage()`.)
+After an update is committed, a page's before-image needs to be updated so that later transactions that abort rollback to this committed version of the page. (Note: We can't just call setBeforeImage() in flushPage(), since flushPage() might be called even if a transaction isn't committing. Our test case actually does that!)
+
+The last change is to make sure that the COMMIT log record is written after all the update log records above.
 
 3. After you have made these changes, do a clean build (`ant clean; ant compile` from the command line, or a "Clean" from the "Project" menu in Eclipse.)
 
@@ -75,6 +75,8 @@ After an update is committed, a page's before-image needs to be updated so that 
 ```
 
 5. If you don't see the above output from `ant runsystest -Dtest=LogTest`, something is somehow incompatible with your existing code. You should figure out and fix the problem before proceeding; ask us for help if necessary.
+
+**Important:** Once you switch policies from FORCE to NO FORCE, your lab3 tests will no longer pass. This is the correct behavior. Worry only about the lab4 tests.
 
 ## 2\. Rollback
 
@@ -106,7 +108,7 @@ You are now ready to implement LogFile.recover().  After completing this exercis
 
 You must submit your code (see below) as well as a short (1 page, maximum) writeup describing your approach. This writeup should:
 
-*   Describe any design decisions you made, including anything that was difficult or unexpected.
+*   Describe your implementation including any design decisions you made. Make sure to emphasize anything that was difficult or unexpected.
 *   Discuss and justify any changes you made outside of `LogFile.java`.
 
 ### 4.1\. Collaboration
