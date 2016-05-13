@@ -55,7 +55,7 @@ The last change is to make sure that the COMMIT log record is written after all 
 
 3. After you have made these changes, do a clean build (`ant clean; ant compile` from the command line, or a "Clean" from the "Project" menu in Eclipse.)
 
-4. At this point your code should pass the first three sub-tests of the `LogTest` systemtest, and fail the rest:
+4. At this point your code should pass the first *two* sub-tests of the `LogTest` systemtest, and fail the rest:
 
 ```sh
 % ant runsystest -Dtest=LogTest
@@ -68,6 +68,8 @@ The last change is to make sure that the COMMIT log record is written after all 
     [junit] Testcase: PatchTest took 0.057 sec
     [junit] Testcase: TestFlushAll took 0.022 sec
     [junit] Testcase: TestCommitCrash took 0.018 sec
+    [junit]     Caused an ERROR
+    [junit] LogTest: tuple not found
     [junit] Testcase: TestAbort took 0.03 sec
     [junit]     Caused an ERROR
     [junit] LogTest: tuple present but shouldn't be
