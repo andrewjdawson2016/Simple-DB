@@ -147,7 +147,17 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
     	if (commit) {
-    		flushPages(tid);
+            for (PageId currPageId : this.cachedPages.keySet()) {
+            	Page currPage = this.cachedPages.get(currPageId);
+            	if (currPage != null) {
+    	        	TransactionId currPageTid = currPage.isDirty();
+    	        	if (currPageTid != null && currPageTid.equals(tid)) {
+						Database.getLogFile().logWrite(tid, currPage.getBeforeImage(), currPage);
+						Database.getLogFile().force();
+						currPage.setBeforeImage();
+    	        	}
+            	}
+            }
     	} else {
     		List<PageId> toRevert = new ArrayList<PageId>();
     		for (PageId currPageId : this.cachedPages.keySet()) {
@@ -257,7 +267,10 @@ public class BufferPool {
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
     	Page page = this.cachedPages.get(pid);
-    	if (page.isDirty() != null) {
+    	TransactionId dirtier = page.isDirty();
+    	if (dirtier != null) {
+    		Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
+    		Database.getLogFile().force();
     		DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
     		page.markDirty(false, null);
     		file.writePage(page);
