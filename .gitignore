@@ -8,3 +8,4 @@ dblp_simpledb.schema
 paperauths.dat
 papers.dat
 venues.dat
+rs.sh
