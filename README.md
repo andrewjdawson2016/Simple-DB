@@ -1,204 +1,130 @@
-# CSE444 Lab 3: SimpleDB Transactions
+# CSE444 Lab 4: Rollback and Recovery
 
-#### Part 1 Due: Mon, May 2th
-#### Due: Mon, May 9th
+**Due: May 20th 2016**
 
-In this lab, you will implement a simple locking-based transaction system in SimpleDB. You will need to add lock and unlock calls at the appropriate places in your code, as well as code to track the locks held by each transaction and grant locks to transactions as they are needed.
+## Introduction
 
-The remainder of this document describes what is involved in adding transaction support and provides a basic outline of how you might add this support to your database.
+In this lab you will implement log-based rollback for aborts and log-based crash recovery. We supply you with the code that defines the log format and appends records to a log file at appropriate times during transactions. You will implement rollback and recovery using the contents of the log file.
 
-As with the previous lab, we recommend that you start as early as possible. Locking and transactions can be quite tricky to debug!
+The logging code we provide generates records intended for physical whole-page undo and redo. When a page is first read in, our code remembers the original content of the page as a before-image. When a transaction updates a page, the corresponding log record contains that remembered before-image as well as the content of the page after modification as an after-image. You'll use the before-image to roll back during aborts and to undo loser transactions during recovery, and the after-image to redo winners during recovery.
 
-*For Part 1 of the lab, please submit your solutions for the following exercises.*
+We are able to get away with doing whole-page physical UNDO (while ARIES must do logical UNDO) because we are doing page level locking and because we have no indices which may have a different structure at UNDO time than when the log was initially written. The reason page-level locking simplifies things is that if a transaction modified a page, it must have had an exclusive lock on it, which means no other transaction was concurrently modifying it, so we can UNDO changes to it by just overwriting the whole page.
 
-*   Exercise 1 (**Section 2.4**)
-*   Exercise 2 (**Section 2.5**)
-
-For Part 1, please tag the commit you wish us to evaluate by executing the lab turnin script:
-
-```sh
-$ ./turnInLab.sh lab3-part1
-```
+Your BufferPool already implements abort by deleting dirty pages, and pretends to implement atomic commit by forcing dirty pages to disk only at commit time. Logging allows more flexible buffer management (STEAL and NO-FORCE), and our test code calls `BufferPool.flushAllPages()` at certain points in order to exercise that flexibility.
 
 ## 1\. Getting started
 
-You should begin with the code you submitted for Lab 2 (if you did not submit code for Lab 2, or your solution didn't work properly, contact us to discuss options). We have provided you with extra test cases for this lab that are not in the original code distribution you received. We reiterate that the unit tests we provide are to help guide your implementation along, but they are not intended to be comprehensive or to establish correctness.
+You should begin with the code you submitted for Lab 3 (if you did not submit code for Lab 3, or your solution didn't work properly, contact us to discuss options.)
 
-You will need to add these new files to your release. You will do this by performing a `git` pull from the upstream repository that you configured during the previous lab.  However, unlike last time you will be pulling from a lab3-specific branch:
+#### Initial lab code
+
+As before, you'll need to pull from the lab 4 upstream branch:
 
 ```sh
 $ git pull upstream master # Make sure we're current with master
-$ git pull upstream lab3   # Now pull lab3!
+$ git pull upstream lab4   # Now pull the lab!
 ```
 
-*   **Eclipse users** should do one of the following:
-    *   Either start a new project called CSE444-lab3 using the instructions from lab 1.
-    *   Or, continue using the CSE444-lab2 project. In that case, you should add the new files to your lab directory by selecting **Team > Pull**. For help in Eclipse/Git configuration look at the [EGit User Guide](https://wiki.eclipse.org/EGit/User_Guide#Fetching_from_upstream) under 3.3.4 Pulling New Changes from Upstream Branch.
+#### Logging modifications
 
-    You may need to take one more step for your code to compile. Under the package explorer, right click the project name (probably `CSE444-lab1`), and select **Properties**. Choose **Java Build Path** on the left-hand-side, and click on the **Libraries** tab on the right-hand-side. Push the **Add JARs...** button, select **zql.jar** and **jline-0.9.94.jar**, and push **OK**, followed by **OK**. Your code should now compile.
+You will next need to make the following changes to your existing code:
 
-## 2\. Transactions, Locking, and Concurrency Control
+1. Insert the following lines into `BufferPool.flushPage()` before your call to `writePage(p)`, where `p` is a reference to the page being written:
 
-Before starting, you should make sure you understand what a transaction is and how **strict two-phase locking** (which you will use to ensure isolation and atomicity of your transactions) works.
+```java
+    // append an update record to the log, with
+    // a before-image and after-image.
+    TransactionId dirtier = p.isDirty();
+    if (dirtier != null){
+      Database.getLogFile().logWrite(dirtier, p.getBeforeImage(), p);
+      Database.getLogFile().force();
+    }
+```
 
-In the remainder of this section, we briefly overview these concepts and discuss how they relate to SimpleDB.
+This causes the logging system to write an update to the log. We force the log to ensure the log record is on disk before the page is written to disk.
 
-### 2.1\. Transactions
+2. You `Transaction::transactionComplete()` calls `flushPages()`. Remove it. We no longer need to force pages to disk at commit time. Your `BufferPool.transactionComplete()` calls `flushPage()` for each page that a committed transaction dirtied. Remove the calls to `flushPage()`. We no longer need to force pages to disk at commit time. However, for each of these dirtied pages, we now need to add a call to `logWrite(tid, p.beforeImage(), p)` and then, of course, force the log to disk. We need to make sure that we can redo the changes to all dirtied pages even if they were never flushed to disk. Finally, add a call to `p.setBeforeImage()`.
 
-A transaction is a group of database actions (e.g., inserts, deletes, and reads) that are executed _atomically_; that is, either all of the actions complete or none of them do, and it is not apparent to an outside observer of the database that these actions were not completed as a part of a single, indivisible action.
+        // use current page contents as the before-image
+        // for the next transaction that modifies this page.
+        p.setBeforeImage();
 
-### 2.2\. The ACID Properties
+After an update is committed, a page's before-image needs to be updated so that later transactions that abort rollback to this committed version of the page. (Note: We can't just call setBeforeImage() in flushPage(), since flushPage() might be called even if a transaction isn't committing. Our test case actually does that!)
 
-To help you understand how transaction management works in SimpleDB, we briefly review how it ensures that the ACID properties are satisfied:
+The last change is to make sure that the COMMIT log record is written after all the update log records above.
 
-*   **Atomicity**: Strict two-phase locking and careful buffer management ensure atomicity.
-*   **Consistency**: The database is transaction consistent by virtue of atomicity. Other consistency issues (e.g., key constraints) are not addressed in SimpleDB.
-*   **Isolation**: Strict two-phase locking provides isolation.
-*   **Durability**: A FORCE buffer management policy ensures durability (see Section 2.3 below).
+3. After you have made these changes, do a clean build (`ant clean; ant compile` from the command line, or a "Clean" from the "Project" menu in Eclipse.)
 
-### 2.3\. Recovery and Buffer Management
+4. At this point your code should pass the first *two* sub-tests of the `LogTest` systemtest, and fail the rest:
 
-To simplify your job, we recommend that you implement a **NO STEAL/FORCE** buffer management policy. As we discussed in class, this means that:
+```sh
+% ant runsystest -Dtest=LogTest
+    ...
+    [junit] Running simpledb.systemtest.LogTest
+    [junit] Testsuite: simpledb.systemtest.LogTest
+    [junit] Tests run: 10, Failures: 0, Errors: 7, Time elapsed: 0.42 sec
+    [junit] Tests run: 10, Failures: 0, Errors: 7, Time elapsed: 0.42 sec
+    [junit]
+    [junit] Testcase: PatchTest took 0.057 sec
+    [junit] Testcase: TestFlushAll took 0.022 sec
+    [junit] Testcase: TestCommitCrash took 0.018 sec
+    [junit]     Caused an ERROR
+    [junit] LogTest: tuple not found
+    [junit] Testcase: TestAbort took 0.03 sec
+    [junit]     Caused an ERROR
+    [junit] LogTest: tuple present but shouldn't be
+    ...
+```
 
-*   You shouldn't evict dirty (updated) pages from the buffer pool if they are locked by an uncommitted transaction (this is NO STEAL).
-*   On transaction commit, you should force dirty pages to disk (e.g., write the pages out) (this is FORCE).
+5. If you don't see the above output from `ant runsystest -Dtest=LogTest`, something is somehow incompatible with your existing code. You should figure out and fix the problem before proceeding; ask us for help if necessary.
 
-To further simplify your life, you may assume that SimpleDB will not crash while processing a `transactionComplete` command. Note that these three points mean that you do not need to implement log-based recovery in this lab, since you will never need to undo any work (you never evict dirty pages) and you will never need to redo any work (you force updates on commit and will not crash during commit processing).
+**Important:** Once you switch policies from FORCE to NO FORCE, your lab3 tests will no longer pass. This is the correct behavior. Worry only about the lab4 tests.
 
-### 2.4\. Granting Locks
+## 2\. Rollback
 
-You will need to add calls to SimpleDB (in `BufferPool`, for example), that allow a caller to request or release a (shared or exclusive) lock on a specific object on behalf of a specific transaction.
+Read the comments in `LogFile.java` for a description of the log file format. You should see in `LogFile.java` a set of functions, such as `logCommit()`, that generate each kind of log record and append it to the log.
 
-We recommend locking at _**page**_ **granularity**, though you should be able to implement locking at _tuple_ granularity if you wish (please do not implement table-level locking). The rest of this document and our unit tests assume page-level locking.
+Your first job is to implement the `rollback()` function in `LogFile.java`. This function is called when a transaction aborts, before the transaction releases its locks. Its job is to undo any changes the transaction may have made to the database.
 
-You will need to **create data structures** that keep track of which locks each transaction holds and that check to see if a lock should be granted to a transaction when it is requested. This is important. We recommend that you implement a new, **LockManager class** that will hold these data structures and will manage locking and unlocking operations.
+Your `rollback()` should read the log file, find all update records associated with the aborting transaction, extract the before-image from each, and write the before-image to the table file. Use `raf.seek()` to move around in the log file, and `raf.readInt()` etc. to examine it. Use `readPageData()` to read each of the before- and after-images. You can use the map `tidToFirstLogRecord` (which maps from a transaction id to an offset in the heap file) to determine where to start reading the log file for a particular transaction. You will need to make sure that you discard any page from the buffer pool whose before-image you write back to the table file.
 
-You will need to implement shared and exclusive locks; recall that these work as follows:
+As you develop your code, you may find the `Logfile.print()` method useful for displaying the current contents of the log.
 
-*   Before a transaction can read an object, it must have a shared lock on it.
-*   Before a transaction can write an object, it must have an exclusive lock on it.
-*   Multiple transactions can have a shared lock on an object.
-*   Only one transaction may have an exclusive lock on an object.
-*   If transaction _t_ is the only transaction holding a shared lock on an object _o_, _t_ may _upgrade_ its lock on _o_ to an exclusive lock.
+#### Exercise 1: LogFile.rollback()
 
-If a transaction requests a lock that it should not be granted, your code should _block_, waiting for that lock to become available (i.e., be released by another transaction running in a different thread).
+You are now ready to implement LogFile.rollback().  After completing this exercise, you should be able to pass the `TestAbort` and `TestAbortCommitInterleaved` sub-tests of the `LogTest` system test.
 
-You need to be especially careful to avoid race conditions when writing the code that acquires locks -- think about how you will ensure that correct behavior results if two threads request the same lock at the same time (you way wish to read about [Synchronization](http://docs.oracle.com/javase/tutorial/essential/concurrency/sync.html) in Java).
+## 3\. Recovery
 
-**Exercise 1.** Write the methods that acquire and release locks in BufferPool. Assuming you are using page-level locking, you will need to complete the following:
+If the database crashes and then reboots, `LogFile.recover()` will be called before any new transactions start. Your implementation should:
 
-*   Modify `getPage()` to block and acquire the desired lock before returning a page.
-*   Implement `releasePage()`. This method is primarily used for testing, and at the end of transactions.
-*   Implement `holdsLock()` so that logic in Exercise 2 can determine whether a page is already locked by a transaction.
+1.  Read the last checkpoint, if any.
+2.  Scan forward from the checkpoint (or start of log file, if no checkpoint) to build the set of loser transactions. Redo updates during this pass. You can safely start redo at the checkpoint because `LogFile.logCheckpoint()` flushes all dirty buffers to disk.
+3.  Undo the updates of loser transactions.
 
-You may need to implement the next exercise before your code passes the unit tests in LockingTest.
+### Exercise 2: LogFile.recover()
 
-### 2.5\. Lock Lifetime
+You are now ready to implement LogFile.recover().  After completing this exercise, you should be able to pass all of the `LogTest` system tests.
 
-You will need to implement strict two-phase locking. This means that transactions should acquire the appropriate type of lock on any object before accessing that object and shouldn't release any locks until after the transaction commits.
+## 4\. Logistics
 
-Fortunately, the SimpleDB design is such that it is possible to obtain locks on pages in `BufferPool.getPage()` before you read or modify them. So, rather than adding calls to locking routines in each of your operators, we recommend acquiring locks in `getPage()`. Depending on your implementation, it is possible that you may not have to acquire a lock anywhere else. It is up to you to verify this!
+You must submit your code (see below) as well as a short (1 page, maximum) writeup describing your approach. This writeup should:
 
-You will need to acquire a _shared_ lock on any page (or tuple) before you read it, and you will need to acquire an _exclusive_ lock on any page (or tuple) before you write it. You will notice that we are already passing around `Permissions` objects in the BufferPool; these objects indicate the type of lock that the caller would like to have on the object being accessed (we have given you the code for the `Permissions` class).
+*   Describe your implementation including any design decisions you made. Make sure to emphasize anything that was difficult or unexpected.
+*   Discuss and justify any changes you made outside of `LogFile.java`.
 
-Note that your implementation of `HeapFile.insertTuple()` and `HeapFile.deleteTuple()`, as well as the implementation of the iterator returned by `HeapFile.iterator()` should access pages using `BufferPool.getPage()`. Double check that that these different uses of `getPage()` pass the correct permissions object (e.g., `Permissions.READ_WRITE` or `Permissions.READ_ONLY`). You may also wish to double check that your implementation of `BufferPool.insertTuple()` and `BufferPool.deleteTuple()` call `markDirty()` on any of the pages they access (you should have done this when you implemented this code in lab 2, but we did not test for this case).
-
-After you have acquired locks, you will need to think about when to release them as well. It is clear that you should release all locks associated with a transaction after it has committed or aborted to ensure strict 2PL. However, it is possible for there to be other scenarios in which releasing a lock before a transaction ends might be useful. For instance, you may release a shared lock on a page after scanning it to find empty slots (as described below).
-
-**Exercise 2.** Ensure that you acquire and release locks throughout SimpleDB. Some (but not necessarily all) actions that you should verify work properly:
-
-*   Reading tuples off of pages during a `SeqScan` (if you implemented locking in `BufferPool.getPage()`, this should work correctly as long as your `HeapFile.iterator()` uses `BufferPool.getPage()`).
-*   Inserting and deleting tuples through BufferPool and HeapFile methods (if you implemented locking in `BufferPool.getPage()`, this should work correctly as long as `HeapFile.insertTuple()` and `HeapFile.deleteTuple()` use `BufferPool.getPage()`).
-
-You will also want to think especially hard about acquiring and releasing locks in the following situations:
-
-*   Adding a new page to a `HeapFile`. When do you physically write the page to disk? Are there race conditions with other transactions (on other threads) that might need special attention at the `HeapFile` level, regardless of page-level locking?
-*   Looking for an empty slot into which you can insert tuples. Most implementations scan pages looking for an empty slot, and will need a READ_ONLY lock to do this. Surprisingly, however, if a transaction _t_ finds no free slot on a page _p_, _t_ may immediately release the lock on _p_. Although this apparently contradicts the rules of two-phase locking, it is ok because _t_ did not use any data from the page, such that a concurrent transaction _t'_ which updated _p_ cannot possibly effect the answer or outcome of _t_.
-
-At this point, your code should pass the unit tests in `LockingTest`.
-
-### 2.6\. Implementing NO STEAL
-
-Modifications from a transaction are written to disk only after it commits. This means we can abort a transaction by discarding the dirty pages and rereading them from disk. Thus, we must not evict dirty pages. This policy is called NO STEAL.
-
-You will need to modify the `evictPage` method in `BufferPool`. In particular, it must never evict a dirty page. If your eviction policy prefers a dirty page for eviction, you will have to find a way to evict an alternative page. In the case where all pages in the buffer pool are dirty, you should throw a `DbException`.
-
-Note that, in general, evicting a clean page that is locked by a running transaction is OK when using NO STEAL, as long as your lock manager keeps information about evicted pages around, and as long as none of your operator implementations keep references to `Page` objects which have been evicted.
-
-**Exercise 3.** Implement the necessary logic for page eviction without evicting dirty pages in the `evictPage` method in `BufferPool`.
-
-### 2.7\. Transactions
-
-In SimpleDB, a `TransactionId` object is created at the beginning of each query. This object is passed to each of the operators involved in the query. When the query is complete, the `BufferPool` method `transactionComplete` is called.
-
-Calling this method either _commits_ or _aborts_ the transaction, specified by the parameter flag `commit`. At any point during its execution, an operator may throw a `TransactionAbortedException` exception, which indicates an internal error or deadlock has occurred. The test cases we have provided you with create the appropriate `TransactionId` objects, pass them to your operators in the appropriate way, and invoke `transactionComplete` when a query is finished. We have also implemented `TransactionId`.
-
-**Exercise 4.** Implement the `transactionComplete()` method in `BufferPool`. Note that there are two versions of transactionComplete, one which accepts an additional boolean `commit` argument, and one which does not. The version without the additional argument should always commit and so can simply be implemented by calling `transactionComplete(tid, true)`.
-
-When you commit, you should flush dirty pages associated to the transaction to disk. When you abort, you should revert any changes made by the transaction by restoring the page to its on-disk state.
-
-Whether the transaction commits or aborts, you should also release any state the `BufferPool` keeps regarding the transaction, including releasing any locks that the transaction held.
-
-At this point, your code should pass the `TransactionTest` unit test and the `AbortEvictionTest` system test. You may find the `TransactionTest` system test illustrative, but it will likely fail until you complete the next exercise.
-
-### 2.8\. Deadlocks and Aborts
-
-It is possible for transactions in SimpleDB to deadlock (if you do not understand why, we recommend reading about deadlocks in the book). You will need to detect this situation and throw a `TransactionAbortedException`.
-
-There are many possible ways to detect a deadlock. For example, you may implement a simple timeout policy that aborts a transaction if it has not completed after a given period of time. Alternately, you may implement cycle-detection in a dependency graph data structure. In this scheme, you would check for cycles in a dependency graph whenever you attempt to grant a new lock, and abort something if a cycle exists. Note that your implementation choice may significantly affect performance. Try different design options and see what happens.
-
-After you have detected that a deadlock exists, you must decide how to improve the situation. Assume you have detected a deadlock while transaction _t_ is waiting for a lock. If you're feeling homicidal, you might abort **all** transactions that _t_ is waiting for; this may result in a large amount of work being undone, but you can guarantee that _t_ will make progress. Alternately, you may decide to abort _t_ to give other transactions a chance to make progress. This means that the end-user will have to retry transaction _t_.
-
-**Exercise 5.** Implement deadlock detection and resolution in `src/java/simpledb/BufferPool.java`. Most likely, you will want to check for a deadlock whenever a transaction attempts to acquire a lock and finds another transaction is holding the lock (note that this by itself is not a deadlock, but may be symptomatic of one.) You have many design decisions for your deadlock resolution system, but it is not necessary to do something complicated. Please describe your choices in the lab writeup.
-
-You should ensure that your code aborts transactions properly when a deadlock occurs, by throwing a `TransactionAbortedException` exception. This exception will be caught by the code executing the transaction (e.g., `TransactionTest.java`), which should call `transactionComplete()` to cleanup after the transaction. You are not expected to automatically restart a transaction which fails due to a deadlock -- you can assume that higher level code will take care of this.
-
-We have provided some (not-so-unit) tests in `test/simpledb/DeadlockTest.java`. They are actually a bit involved, so they may take more than a few seconds to run (depending on your policy). If they seem to hang indefinitely, then you probably have an unresolved deadlock. These tests construct simple deadlock situations that your code should be able to escape.
-
-Note that there are two timing parameters near the top of `DeadLockTest.java`; these determine the frequency at which the test checks if locks have been acquired and the waiting time before an aborted transaction is restarted. You may observe different performance characteristics by tweaking these parameters if you use a timeout-based detection method. The tests will output `TransactionAbortedExceptions` corresponding to resolved deadlocks to the console.
-
-Your code should now should pass the `TransactionTest` system test (which may also run for quite a long time).
-
-At this point, you should have a recoverable database, in the sense that if the database system crashes (at a point other than `transactionComplete()`) or if the user explicitly aborts a transaction, the effects of any running transaction will not be visible after the system restarts (or the transaction aborts). You may wish to verify this by running some transactions and explicitly killing the database server.
-
-### 2.9\. Design alternatives
-
-During the course of this lab, we have identified three substantial design choices that you have to make:
-
-*   Locking granularity: page-level versus tuple-level
-*   Deadlock detection: timeouts versus dependency graphs
-*   Deadlock resolution: aborting yourself versus aborting others
-
-**Bonus Exercise 6\. (10% extra credit)** For one or more of these choices, implement both alternatives and briefly compare their performance characteristics in your writeup.
-
-You have now completed this lab. Good work!
-
-## 3\. Logistics
-
-You must submit your code (see below) as well as a short (2 pages, maximum) writeup describing your approach. This writeup should:
-
-* In your own words, describe what this lab was about: Describe the various components that
-    you implemented and how they work. This part needs to
-    **demonstrate your understanding** of the lab! If your description
-    looks like a copy paste of the instructions or a copy-paste of the
-    provided documentation you will lose points.
-*       Give one example of a unit test that could be added to improve the
-    set of unit tests that we provided for this lab.
-*   Describe any design decisions you made, including your deadlock detection policy, locking granularity, etc.
-*   Discuss and justify any changes you made to the API.
-
-### 3.1\. Collaboration
+### 4.1\. Collaboration
 
 All CSE 444 labs are to be completed **INDIVIDUALLY**! However, you may discuss your high-level approach to solving each lab with other students in the class.
 
-### 3.2\. Submitting your assignment
+### 4.2\. Submitting your assignment
 
-You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab3-answers.txt` or `lab3-answers.pdf` in the top level of your repository.
+You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab4-answers.txt` or `lab4-answers.pdf` in the top level of your repository.
 
 **Important**: In order for your write-up to be added to the git repo, you need to explicitly add it:
 
 ```sh
-$ git add lab3-answers.txt
+$ git add lab4-answers.txt
 ```
 
 You also need to explicitly add any other files you create, such as new `*.java` files.
@@ -210,16 +136,16 @@ The criteria for your lab being submitted on time is that your code must be tagg
 There is a bash script `turnInLab.sh` in the root level directory of your repository that commits your changes, deletes any prior tag for the current lab, tags the current commit, and pushes the branch and tag to GitLab. If you are using Linux or Mac OSX, you should be able to run the following:
 
 ```sh
-$ ./turnInLab.sh lab3
+$ ./turnInLab.sh lab4
 ```
 
 You should see something like the following output:
 
 ```sh
-$ ./turnInLab.sh lab3
-[master b155ba0] Lab 3
+$ ./turnInLab.sh lab4
+[master b155ba0] Lab 4
  1 file changed, 1 insertion(+)
-Deleted tag 'lab3' (was b26abd0)
+Deleted tag 'lab4' (was b26abd0)
 To git@gitlab.com:cse444-16sp/simple-db-pirateninja.git
  - [deleted]         lab3
 Counting objects: 11, done.
@@ -232,12 +158,11 @@ To git@gitlab.com:cse444-16sp/simple-db-pirateninja.git
 Counting objects: 1, done.
 Writing objects: 100% (1/1), 152 bytes | 0 bytes/s, done.
 Total 1 (delta 0), reused 0 (delta 0)
-To git@gitlab.com:cse444-16sp/hsimple-db-pirateninja.git
- * [new tag]         lab3 -> lab3
+To git@gitlab.com:cse444-16sp/simple-db-pirateninja.git
+ * [new tag]         lab4 -> lab4
 ```
 
-
-### 3.3\. Submitting a bug
+### 4.3\. Submitting a bug
 
 SimpleDB is a relatively complex piece of code. It is very possible you are going to find bugs, inconsistencies, and bad, outdated, or incorrect documentation, etc.
 
@@ -247,13 +172,13 @@ We ask you, therefore, to do this lab with an adventurous mindset. Don't get mad
 *   A `.java` file we can drop in the `test/simpledb` directory, compile, and run.
 *   A `.txt` file with the data that reproduces the bug. We should be able to convert it to a `.dat` file using `HeapFileEncoder`.
 
-You can also post on the class message boardif you feel you have run into a bug.
+You can also post on the class message board if you feel you have run into a bug.
 
-### 3.4 Grading
+### 4.4 Grading
 
-50% of your grade will be based on whether or not your code passes the system test suite we will run over it. These tests will be a superset of the tests we have provided. Before handing in your code, you should make sure it produces no errors (passes all of the tests) from both `ant test` and `ant systemtest`.
+50% of your grade will be based on whether or not your code passes the system test suite we will run over it. These tests will be a superset of the tests we have provided; the tests we provide are to help guide your implementation, but they do not define correctness. Before handing in your code, you should make sure produces no errors (passes all of the tests) from both `ant test` and `ant systemtest`.
 
-**Important:** Before testing, we will replace your `build.xml`, `HeapFileEncoder.java`, and the entire contents of the `test/` directory with our version of these files! This means you cannot change the format of `.dat` files! You should therefore be careful changing our APIs. This also means you need to test whether your code compiles with our test programs. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
+**Important:** Before testing, we will replace your `build.xml`, `HeapFileEncoder.java`, and the entire contents of the `test/` directory with our version of these files. This means you cannot change the format of the `.dat` files! You should also be careful when changing APIs and make sure that any changes you make are backwards compatible. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
 
 ```sh
 $ git clone git@gitlab.com:cse444-16sp/simple-db-yourname
@@ -267,3 +192,5 @@ $ # [additional tests]
 If any of these commands fail, we'll be unhappy, and, therefore, so will your grade.
 
 An additional 50% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
+
+We've had a lot of fun designing this assignment, and we hope you enjoy hacking on it!
