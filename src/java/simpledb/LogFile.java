@@ -518,25 +518,22 @@ public class LogFile {
                 		long recordTid = this.raf.readLong();
                 		if (recordType == COMMIT_RECORD) {
                 			undoTransactions.remove(recordTid);
-                			this.raf.skipBytes(LONG_SIZE);
                 		} else if (recordType == UPDATE_RECORD) {
                 			this.readPageData(this.raf);
                 			Page afterPageImage = this.readPageData(this.raf);
                 			Database.getCatalog().getDatabaseFile(afterPageImage.getId()
                 					.getTableId()).writePage(afterPageImage);
-                			this.raf.skipBytes(LONG_SIZE);
                 		} else if (recordType == BEGIN_RECORD) {
                 			undoTransactions.add(recordTid);
                 		}
+            			this.raf.skipBytes(LONG_SIZE);
                 	} catch(EOFException e) {
                 		break;
                 	}
                 }
-
                 for (long currId : undoTransactions) {
                 	rollbackHelper(currId);
-                }
-                	
+                }   	
             }
          }
     }
