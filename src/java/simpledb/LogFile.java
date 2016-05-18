@@ -466,39 +466,7 @@ public class LogFile {
         synchronized (Database.getBufferPool()) {
             synchronized(this) {
                 preAppend();
-                if (!this.tidToFirstLogRecord.containsKey(tid.getId())) {
-                	return;
-                }
-                
-                Set<Page> pagesReverted = new HashSet<Page>();
-                long offset = this.tidToFirstLogRecord.get(tid.getId());
-                this.raf.seek(offset);
-                while (true) {
-                	try {
-                		int recordType = this.raf.readInt();
-                		long recordTid = this.raf.readLong();
-                		if (recordType == UPDATE_RECORD && recordTid == tid.getId()) {
-                			Page recordBeforePage = this.readPageData(this.raf);
-                			if (!pagesReverted.contains(recordBeforePage)) {
-                    			Database.getCatalog().getDatabaseFile(recordBeforePage.getId()
-                    					.getTableId()).writePage(recordBeforePage);
-                    			Database.getBufferPool().discardPage(recordBeforePage.getId());
-                    			pagesReverted.add(recordBeforePage);
-                			}
-                			this.readPageData(this.raf);
-                		} else if (recordType == UPDATE_RECORD) {
-                			this.readPageData(this.raf);
-                			this.readPageData(this.raf);
-                		} else if (recordType == CHECKPOINT_RECORD) {
-                			int transactionCount = this.raf.readInt();
-                			this.raf.skipBytes(transactionCount * LONG_SIZE * 2);
-                		}
-                		this.raf.readLong();
-                	} catch(EOFException e) {
-                		break;
-                	}
-                }
-                this.currentOffset = this.raf.getFilePointer();
+                rollbackHelper(tid.getId());
             }
         }
     }
@@ -525,7 +493,50 @@ public class LogFile {
         synchronized (Database.getBufferPool()) {
             synchronized (this) {
                 recoveryUndecided = false;
-                // some code goes here
+                
+                this.raf.seek(0);
+                boolean hasCheckpoint = false;
+                long lastCheckpointOffset = this.raf.readLong();
+                if (lastCheckpointOffset != -1) {
+                	this.raf.seek(lastCheckpointOffset);
+                	hasCheckpoint = true;
+                }
+                
+                Set<Long> undoTransactions = new HashSet<Long>();
+                if (hasCheckpoint) {
+                	this.raf.skipBytes(INT_SIZE + LONG_SIZE);
+                	int activeTransactionCount = this.raf.readInt();
+                	for (int i = 0; i < activeTransactionCount; i++) {
+                		undoTransactions.add(this.raf.readLong());
+                		this.raf.skipBytes(LONG_SIZE);
+                	}
+                	this.raf.skipBytes(LONG_SIZE);
+                }
+                while (true) {
+                	try {
+                		int recordType = this.raf.readInt();
+                		long recordTid = this.raf.readLong();
+                		if (recordType == COMMIT_RECORD) {
+                			undoTransactions.remove(recordTid);
+                			this.raf.skipBytes(LONG_SIZE);
+                		} else if (recordType == UPDATE_RECORD) {
+                			this.readPageData(this.raf);
+                			Page afterPageImage = this.readPageData(this.raf);
+                			Database.getCatalog().getDatabaseFile(afterPageImage.getId()
+                					.getTableId()).writePage(afterPageImage);
+                			this.raf.skipBytes(LONG_SIZE);
+                		} else if (recordType == BEGIN_RECORD) {
+                			undoTransactions.add(recordTid);
+                		}
+                	} catch(EOFException e) {
+                		break;
+                	}
+                }
+
+                for (long currId : undoTransactions) {
+                	rollbackHelper(currId);
+                }
+                	
             }
          }
     }
@@ -538,5 +549,40 @@ public class LogFile {
     public  synchronized void force() throws IOException {
         raf.getChannel().force(true);
     }
-
+    
+    private void rollbackHelper(long id) throws IOException {
+        if (!this.tidToFirstLogRecord.containsKey(id)) {
+        	return;
+        }
+        
+        Set<Page> pagesReverted = new HashSet<Page>();
+        long offset = this.tidToFirstLogRecord.get(id);
+        this.raf.seek(offset);
+        while (true) {
+        	try {
+        		int recordType = this.raf.readInt();
+        		long recordTid = this.raf.readLong();
+        		if (recordType == UPDATE_RECORD && recordTid == id) {
+        			Page recordBeforePage = this.readPageData(this.raf);
+        			if (!pagesReverted.contains(recordBeforePage)) {
+            			Database.getCatalog().getDatabaseFile(recordBeforePage.getId()
+            					.getTableId()).writePage(recordBeforePage);
+            			Database.getBufferPool().discardPage(recordBeforePage.getId());
+            			pagesReverted.add(recordBeforePage);
+        			}
+        			this.readPageData(this.raf);
+        		} else if (recordType == UPDATE_RECORD) {
+        			this.readPageData(this.raf);
+        			this.readPageData(this.raf);
+        		} else if (recordType == CHECKPOINT_RECORD) {
+        			int transactionCount = this.raf.readInt();
+        			this.raf.skipBytes(transactionCount * LONG_SIZE * 2);
+        		}
+        		this.raf.readLong();
+        	} catch(EOFException e) {
+        		break;
+        	}
+        }
+        this.currentOffset = this.raf.getFilePointer();
+    }
 }
