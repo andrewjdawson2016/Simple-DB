@@ -466,7 +466,39 @@ public class LogFile {
         synchronized (Database.getBufferPool()) {
             synchronized(this) {
                 preAppend();
-                // some code goes here
+                if (!this.tidToFirstLogRecord.containsKey(tid.getId())) {
+                	return;
+                }
+                
+                Set<Page> pagesReverted = new HashSet<Page>();
+                long offset = this.tidToFirstLogRecord.get(tid.getId());
+                this.raf.seek(offset);
+                while (true) {
+                	try {
+                		int recordType = this.raf.readInt();
+                		long recordTid = this.raf.readLong();
+                		if (recordType == UPDATE_RECORD && recordTid == tid.getId()) {
+                			Page recordBeforePage = this.readPageData(this.raf);
+                			if (!pagesReverted.contains(recordBeforePage)) {
+                    			Database.getCatalog().getDatabaseFile(recordBeforePage.getId()
+                    					.getTableId()).writePage(recordBeforePage);
+                    			Database.getBufferPool().discardPage(recordBeforePage.getId());
+                    			pagesReverted.add(recordBeforePage);
+                			}
+                			this.readPageData(this.raf);
+                		} else if (recordType == UPDATE_RECORD) {
+                			this.readPageData(this.raf);
+                			this.readPageData(this.raf);
+                		} else if (recordType == CHECKPOINT_RECORD) {
+                			int transactionCount = this.raf.readInt();
+                			this.raf.skipBytes(transactionCount * LONG_SIZE * 2);
+                		}
+                		this.raf.readLong();
+                	} catch(EOFException e) {
+                		break;
+                	}
+                }
+                this.currentOffset = this.raf.getFilePointer();
             }
         }
     }
