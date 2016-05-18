@@ -525,8 +525,12 @@ public class LogFile {
                 					.getTableId()).writePage(afterPageImage);
                 		} else if (recordType == BEGIN_RECORD) {
                 			undoTransactions.add(recordTid);
+                			long firstLogRecord = this.raf.readLong();
+                			this.tidToFirstLogRecord.put(recordTid, firstLogRecord);
                 		}
-            			this.raf.skipBytes(LONG_SIZE);
+                		if (recordType != BEGIN_RECORD) {
+                			this.raf.skipBytes(LONG_SIZE);
+                		}
                 	} catch(EOFException e) {
                 		break;
                 	}
