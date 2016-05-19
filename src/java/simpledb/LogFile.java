@@ -528,8 +528,10 @@ public class LogFile {
 					this.raf.skipBytes(INT_SIZE + LONG_SIZE);
 					int activeTransactionCount = this.raf.readInt();
 					for (int i = 0; i < activeTransactionCount; i++) {
-						undoTransactions.add(this.raf.readLong());
-						this.raf.skipBytes(LONG_SIZE);
+						long currCheckpointTid = this.raf.readLong();
+						long currCheckpointOffset = this.raf.readLong();
+						undoTransactions.add(currCheckpointTid);
+						this.tidToFirstLogRecord.put(currCheckpointTid, currCheckpointOffset);
 					}
 					this.raf.skipBytes(LONG_SIZE);
 				}
