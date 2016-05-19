@@ -272,7 +272,6 @@ public class BufferPool {
     		Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
     		Database.getLogFile().force();
     		DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
-    		page.markDirty(false, null);
     		file.writePage(page);
     	}
     }
