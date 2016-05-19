@@ -548,6 +548,9 @@ public class LogFile {
 							undoTransactions.add(recordTid);
 							long firstLogRecord = this.raf.readLong();
 							this.tidToFirstLogRecord.put(recordTid, firstLogRecord);
+						} else if (recordType == ABORT_RECORD) {
+							undoTransactions.remove(recordTid);
+							rollbackHelper(recordTid);
 						}
 						if (recordType != BEGIN_RECORD) {
 							this.raf.skipBytes(LONG_SIZE);
@@ -600,6 +603,8 @@ public class LogFile {
 				} else if (recordType == CHECKPOINT_RECORD) {
 					int transactionCount = this.raf.readInt();
 					this.raf.skipBytes(transactionCount * LONG_SIZE * 2);
+				} else if (recordType == ABORT_RECORD) {
+					break;
 				}
 				this.raf.readLong();
 			} catch (EOFException e) {
