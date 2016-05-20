@@ -605,7 +605,7 @@ public class LogFile {
 				} else if (recordType == CHECKPOINT_RECORD) {
 					int transactionCount = this.raf.readInt();
 					this.raf.skipBytes(transactionCount * LONG_SIZE * 2);
-				} else if (recordType == ABORT_RECORD) {
+				} else if (recordTid == id && recordType == ABORT_RECORD) {
 					break;
 				}
 				this.raf.readLong();
