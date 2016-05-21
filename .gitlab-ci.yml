@@ -13,4 +13,8 @@ build:
 
 test:
   script:
-    - ant runtest -Dtest=systemtest.LogTest
+    - ant runtest -Dtest=ParallelAggregateTest
+    - ant runtest -Dtest=ShuffleTest
+    - ant runtest -Dtest=WorkerTest
+    - ant runtest -Dtest=WorkerTest
+    - ant runtest -Dtest=systemtest.ParallelTest
