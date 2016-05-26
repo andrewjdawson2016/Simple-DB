@@ -140,6 +140,7 @@ $ chmod u+x bin/startSimpleDB.sh
 # First, you need to extract the data from the tar file:
 $ cd etc
 $ tar zxvf sample-0.1.tar.bz2
+# Or try tar -vxjf to unzip the file
 $ cd ..
 
 # Step 3.2: Now you can run the script. The general format is
