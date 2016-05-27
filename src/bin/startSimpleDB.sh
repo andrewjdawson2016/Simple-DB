@@ -50,7 +50,7 @@ function xEnabled
 		return false
 	fi
 
-	(xterm -e "") 2>&1 > /dev/null 
+	(xterm -e "") 2>&1 > /dev/null
 }
 
 #--------------------------------------------init--------------------------------------
@@ -63,9 +63,9 @@ if [ "$osName" = Darwin ] || [ "${osName:0:6}" = CYGWIN ] || [ "$osName" = Linux
 then
 	true
 else
-	echo "Unsupported OS. Currently only Linux, Mac and Windows with \ 
+	echo "Unsupported OS. Currently only Linux, Mac and Windows with \
 	Cygwin are supported"
-	#echo "Unsupported OS. Currently only Linux and Mac OS \ 
+	#echo "Unsupported OS. Currently only Linux and Mac OS \
 	#are supported"
 	exit;
 fi
@@ -133,10 +133,10 @@ echo "Start copying simpledb files to workers"
 for host in $workerHosts
 do
 	echo "Copying to $host"
-	ssh $host "mkdir -p /tmp/simpledb/data;mkdir /tmp/simpledb/bin;mkdir /tmp/simpledb/lib;mkdir /tmp/simpledb/conf"
-	rsync -a "$SIMPLEDB_ROOT/bin/" $host:/tmp/simpledb/bin
-	rsync -a "$SIMPLEDB_ROOT/lib/" $host:/tmp/simpledb/lib
-	rsync -a "$SIMPLEDB_ROOT/conf/" $host:/tmp/simpledb/conf
+	ssh $host "mkdir -p /tmp/$USER/simpledb/data;mkdir /tmp/$USER/simpledb/bin;mkdir /tmp/$USER/simpledb/lib;mkdir /tmp/$USER/simpledb/conf"
+	rsync -a "$SIMPLEDB_ROOT/bin/" $host:/tmp/$USER/simpledb/bin
+	rsync -a "$SIMPLEDB_ROOT/lib/" $host:/tmp/$USER/simpledb/lib
+	rsync -a "$SIMPLEDB_ROOT/conf/" $host:/tmp/$USER/simpledb/conf
 	echo "Done"
 done
 echo "Finish copying simpledb files"
@@ -154,8 +154,8 @@ do
 		port=$(echo $worker | sed 's/^[^:]\+://g')
 	fi
 	echo "Copying to $host:$port"
-	ssh $host "mkdir -p /tmp/simpledb/data/$port"
-	rsync -a "$SIMPLEDB_ROOT/data/${host}_${port}/" $host:/tmp/simpledb/data/$port
+	ssh $host "mkdir -p /tmp/$USER/simpledb/data/$port"
+	rsync -a "$SIMPLEDB_ROOT/data/${host}_${port}/" $host:/tmp/$USER/simpledb/data/$port
 	echo "Done"
 done
 echo "Finish copying data files"
@@ -177,34 +177,34 @@ then
 fi
 
 for worker in $workers
-do 
+do
 	if isMac
 	then
-		host=$(echo $worker | sed -E 's/:[0-9]+$//g') 
-		port=$(echo $worker | sed -E 's/^[^:]+://g') 
+		host=$(echo $worker | sed -E 's/:[0-9]+$//g')
+		port=$(echo $worker | sed -E 's/^[^:]+://g')
 	else
-		host=$(echo $worker | sed 's/:[0-9]\+$//g') 
-		port=$(echo $worker | sed 's/^[^:]\+://g') 
+		host=$(echo $worker | sed 's/:[0-9]\+$//g')
+		port=$(echo $worker | sed 's/^[^:]\+://g')
 	fi
 	if isLinux || isCygwin
 	then
-		if ! xEnabled 
+		if ! xEnabled
 		then
-		    (exec ssh $host "cd /tmp/simpledb; java -classpath \
+		    (exec ssh $host "cd /tmp/$USER/simpledb; java -classpath \
 		    \"bin/src${CLASSPATH_SEPARATOR}lib/*\" simpledb.parallel.Worker ${host}:$port $serverAddr" 2>&1 | \
-		    sed "s/^/$host:$port\\$ /g" ) & 
+		    sed "s/^/$host:$port\\$ /g" ) &
 		else
 		    ${terminal} ${titleOption} "Worker: $host:$port. Do not close this window when SimpleDB is running." -e \
-		    "bash -c \"ssh $host \\\"cd /tmp/simpledb; java -classpath \
+		    "bash -c \"ssh $host \\\"cd /tmp/$USER/simpledb; java -classpath \
 		    \\\\\\\"bin/src${CLASSPATH_SEPARATOR}lib/*\\\\\\\" \
 		    simpledb.parallel.Worker ${host}:$port $serverAddr\\\" | \
-		    sed \\\"s/^/$host:$port\\\\$ /g\\\" \" " & 
+		    sed \\\"s/^/$host:$port\\\\$ /g\\\" \" " &
 		fi
 	else
 		#mac
 
 		osascript -e "tell app \"Terminal\"
-			do script \"echo -e \\\"\\\\033]0;Worker: $host:$port. Do not close this window when SimpleDB is running.\\\\007\\\"; ssh $host \\\"cd /tmp/simpledb; java -classpath \\\\\\\"bin/src:lib/*\\\\\\\" simpledb.parallel.Worker ${host}:$port $serverAddr \\\" \"
+			do script \"echo -e \\\"\\\\033]0;Worker: $host:$port. Do not close this window when SimpleDB is running.\\\\007\\\"; ssh $host \\\"cd /tmp/$USER/simpledb; java -classpath \\\\\\\"bin/src:lib/*\\\\\\\" simpledb.parallel.Worker ${host}:$port $serverAddr \\\" \"
 		end tell"
 	fi
 
