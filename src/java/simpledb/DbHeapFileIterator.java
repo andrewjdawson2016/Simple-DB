@@ -1,8 +1,14 @@
 package simpledb;
 
 import java.util.Iterator;
+import java.io.Serializable;
 
-public class DbHeapFileIterator extends AbstractDbFileIterator {
+public class DbHeapFileIterator extends AbstractDbFileIterator implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The current page number we are on
