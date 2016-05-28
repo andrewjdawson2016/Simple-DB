@@ -3,16 +3,16 @@
 	<classpathentry kind="src" output="bin/src" path="src/java"/>
 	<classpathentry kind="src" output="bin/test" path="test"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/ant-contrib-1.0b3.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/javassist-3.16.1-GA.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/jline-0.9.94.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/junit-4.5.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/jzlib-1.0.7.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/log4j-1.2.17.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/mina-core-2.0.4.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/mina-filter-compression-2.0.4.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/slf4j-api-1.6.1.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/slf4j-log4j12-1.6.1.jar"/>
-	<classpathentry kind="lib" path="/home/dawsoa2/Desktop/simple-db-dawsoa2/lib/zql.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/ant-contrib-1.0b3.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/javassist-3.16.1-GA.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/jline-0.9.94.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/junit-4.5.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/jzlib-1.0.7.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/log4j-1.2.17.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/mina-core-2.0.4.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/mina-filter-compression-2.0.4.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/slf4j-api-1.6.1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/slf4j-log4j12-1.6.1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Andrew Dawson/workspace/simple-db-dawsoa2/lib/zql.jar"/>
 	<classpathentry kind="output" path="bin/src"/>
 </classpath>
