@@ -141,6 +141,7 @@ public class Worker {
 
     public void start() throws IOException {
         acceptor.bind(new InetSocketAddress(host, port));
+        workingThread.start();
     }
 
     /**
