@@ -82,6 +82,7 @@ shift
 if isCygwin
 then
 	catalogFile="$(cygpath --windows $catalogFile)"
+    catalogFile="$(echo $catalogFile)" # | sed 's/ / /g')"
 fi
 
 CLASSPATH_SEPARATOR=":"
@@ -120,7 +121,7 @@ echo "catalogFile is : $catalogFile"
 #The data for this worker lies in SIMPLEDB_ROOT/data/host_port
 #The filename of the catalog is fixed as catalog.schema
 cd "$SIMPLEDB_ROOT"; java -classpath "bin/src${CLASSPATH_SEPARATOR}lib/*" \
-  simpledb.HeapFileSplitter $catalogFile
+  simpledb.HeapFileSplitter "$catalogFile"
 
 chmod -R u+rw,g+rw,o+rw data
 chmod -R u+rw,g+rw,o+rw lib
@@ -134,9 +135,9 @@ for host in $workerHosts
 do
 	echo "Copying to $host"
 	ssh $host "mkdir -p /tmp/$USER/simpledb/data;mkdir /tmp/$USER/simpledb/bin;mkdir /tmp/$USER/simpledb/lib;mkdir /tmp/$USER/simpledb/conf"
-	rsync -a "$SIMPLEDB_ROOT/bin/" $host:/tmp/$USER/simpledb/bin
-	rsync -a "$SIMPLEDB_ROOT/lib/" $host:/tmp/$USER/simpledb/lib
-	rsync -a "$SIMPLEDB_ROOT/conf/" $host:/tmp/$USER/simpledb/conf
+	rsync -a "$SIMPLEDB_ROOT/bin/" $host:"/tmp/$USER/simpledb/bin"
+	rsync -a "$SIMPLEDB_ROOT/lib/" $host:"/tmp/$USER/simpledb/lib"
+	rsync -a "$SIMPLEDB_ROOT/conf/" $host:"/tmp/$USER/simpledb/conf"
 	echo "Done"
 done
 echo "Finish copying simpledb files"
@@ -228,4 +229,4 @@ fi
 #--------------------------------------------start server--------------------------------------
 echo "Finish starting workers, now starting the server"
 cd "$SIMPLEDB_ROOT"
-exec java $javaOptions -classpath "bin/src${CLASSPATH_SEPARATOR}lib/*" simpledb.parallel.Server $catalogFile $*
+exec java $javaOptions -classpath "bin/src${CLASSPATH_SEPARATOR}lib/*" simpledb.parallel.Server "$catalogFile" $*
