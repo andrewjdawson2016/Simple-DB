@@ -14,6 +14,7 @@ import org.apache.mina.transport.socket.nio.NioSocketAcceptor;
 
 import java.util.NoSuchElementException;
 import simpledb.DbException;
+import simpledb.DbFile;
 import simpledb.Tuple;
 import simpledb.TupleDesc;
 import simpledb.TransactionAbortedException;
@@ -23,7 +24,7 @@ import simpledb.Operator;
 import simpledb.Database;
 import simpledb.DbIterator;
 import simpledb.QueryPlanVisualizer;
-
+import simpledb.SeqScan;
 import simpledb.parallel.Exchange.ParallelOperatorID;
 
 /**
@@ -223,7 +224,24 @@ public class Worker {
      * information.
      * */
     public void localizeQueryPlan(DbIterator queryPlan) {
-        // some code goes here
+        if (queryPlan instanceof SeqScan) {
+        	int tableId = Database.getCatalog().getTableId(((SeqScan) queryPlan).getTableName());
+        	String tableAlias = ((SeqScan) queryPlan).getAlias();
+        	((SeqScan) queryPlan).reset(tableId, tableAlias);
+        } else if (queryPlan instanceof Consumer) {
+        	ParallelOperatorID operatorId = ((Consumer) queryPlan).getOperatorID();
+        	LinkedBlockingQueue<ExchangeMessage> linkedBlockingQueue = this.inBuffer.get(operatorId);
+        	((Consumer) queryPlan).setBuffer(linkedBlockingQueue);
+        } else if (queryPlan instanceof Producer) {
+        	((Producer) queryPlan).setThisWorker(Worker.this);
+        }
+        
+        if (queryPlan instanceof Consumer || queryPlan instanceof Consumer) {
+        	DbIterator[] children = ((Producer) queryPlan).getChildren();
+        	for (DbIterator child : children) {
+        		localizeQueryPlan(child);
+        	}
+        }
     }
 
     /**
