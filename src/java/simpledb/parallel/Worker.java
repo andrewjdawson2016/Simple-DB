@@ -236,8 +236,8 @@ public class Worker {
         	((Producer) queryPlan).setThisWorker(Worker.this);
         }
         
-        if (queryPlan instanceof Consumer || queryPlan instanceof Consumer) {
-        	DbIterator[] children = ((Producer) queryPlan).getChildren();
+        if (queryPlan instanceof Operator) {
+        	DbIterator[] children = ((Operator) queryPlan).getChildren();
         	for (DbIterator child : children) {
         		localizeQueryPlan(child);
         	}
