@@ -32,6 +32,11 @@ public class SeqScan implements DbIterator {
     private DbFileIterator dbFileItr;
     
     /**
+     * the name of the table
+     */
+    private String tableName;
+    
+    /**
      * Creates a sequential scan over the specified table as a part of the
      * specified transaction.
      *
@@ -53,6 +58,7 @@ public class SeqScan implements DbIterator {
     	this.tableid = tableid;
     	this.tableAlias = tableAlias;
     	this.dbFileItr = Database.getCatalog().getDatabaseFile(tableid).iterator(tid);
+    	this.tableName = Database.getCatalog().getTableName(tableid);
     }
 
     /**
@@ -61,7 +67,7 @@ public class SeqScan implements DbIterator {
      *       be the actual name of the table in the catalog of the database
      * */
     public String getTableName() {
-        return Database.getCatalog().getTableName(this.tableid);
+        return this.tableName;
     }
 
     /**

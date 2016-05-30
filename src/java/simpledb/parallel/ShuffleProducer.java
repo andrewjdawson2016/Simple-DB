@@ -18,6 +18,11 @@ public class ShuffleProducer extends Producer {
 
     private static final long serialVersionUID = 1L;
 
+    private DbIterator child;
+    private ParallelOperatorID operatorID;
+    private SocketInfo[] workers;
+    private PartitionFunction<?, ?> pf;
+    
     public String getName() {
         return "shuffle_p";
     }
@@ -25,21 +30,22 @@ public class ShuffleProducer extends Producer {
     public ShuffleProducer(DbIterator child, ParallelOperatorID operatorID,
             SocketInfo[] workers, PartitionFunction<?, ?> pf) {
         super(operatorID);
-        // some code goes here
+        this.child = child;
+        this.operatorID = operatorID;
+        this.workers = workers;
+        this.pf = pf;
     }
 
     public void setPartitionFunction(PartitionFunction<?, ?> pf) {
-        // some code goes here
+        this.pf = pf;
     }
 
     public SocketInfo[] getWorkers() {
-        // some code goes here
-        return null;
+        return this.workers;
     }
 
     public PartitionFunction<?, ?> getPartitionFunction() {
-        // some code goes here
-        return null;
+        return this.pf;
     }
 
     // some code goes here
@@ -78,12 +84,13 @@ public class ShuffleProducer extends Producer {
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+    	return new DbIterator[] { this.child };
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+    	if (this.child != children[0]) {
+    	    this.child = children[0];
+    	}
     }
 }

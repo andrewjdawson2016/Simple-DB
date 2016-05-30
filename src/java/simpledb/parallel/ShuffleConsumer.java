@@ -20,6 +20,10 @@ public class ShuffleConsumer extends Consumer {
 
     private static final long serialVersionUID = 1L;
 
+    private ShuffleProducer child;
+    private ParallelOperatorID operatorID;
+    private SocketInfo[] workers;
+    
     public String getName() {
         return "shuffle_c";
     }
@@ -31,7 +35,9 @@ public class ShuffleConsumer extends Consumer {
     public ShuffleConsumer(ShuffleProducer child,
             ParallelOperatorID operatorID, SocketInfo[] workers) {
         super(operatorID);
-        // some code goes here
+        this.child = child;
+        this.operatorID = operatorID;
+        this.workers = workers;
     }
 
     @Override
@@ -78,13 +84,14 @@ public class ShuffleConsumer extends Consumer {
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+    	return new DbIterator[] { this.child };
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+    	if (this.child != children[0]) {
+    	    this.child = (ShuffleProducer) children[0];
+    	}
     }
 
 }
