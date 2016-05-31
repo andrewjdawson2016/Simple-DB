@@ -64,14 +64,16 @@ public class Worker {
                 // }
 
                 if (query != null) {
-                    //try {
-                        //some code goes here
-                    //catch (DbException e1) {
-                    //    e1.printStackTrace();
-                    //} catch (TransactionAbortedException e1) {
-                    //    e1.printStackTrace();
-                    //} catch (InterruptedException e) {
-                    //    e.printStackTrace();
+                	try {
+                        // some code goes here
+                		CollectProducer queryRoot = (CollectProducer) query;
+                		queryRoot.open();
+                	} catch (DbException e1) {
+                        e1.printStackTrace();
+                    } catch (TransactionAbortedException e1) {
+                        e1.printStackTrace();
+                    } //catch (InterruptedException e) {
+                        //e.printStackTrace();
                     //}
 
                 Worker.this.finishQuery();
