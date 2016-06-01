@@ -243,6 +243,10 @@ public class WorkerTest extends ParallelTestBase {
         }
 
         // EOS message should have been received
+	System.out.println("server recived tuples size: " + serverReceivedTuples.size());
+	for (String curr : serverReceivedTuples) {
+	    System.out.println("tuple: " + curr);
+	}
         Assert.assertTrue(seenEOS);
 
         // The server's received tuples should be the same as the output of the

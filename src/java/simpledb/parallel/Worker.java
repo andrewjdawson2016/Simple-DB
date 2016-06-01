@@ -65,7 +65,6 @@ public class Worker {
 
                 if (query != null) {
                 	try {
-                		System.out.println("+++++++++++++++++++++++++++__________________________++===========");
                 		CollectProducer queryRoot = (CollectProducer) query;
                 		queryRoot.open();
                 		while (queryRoot.hasNext()) {
