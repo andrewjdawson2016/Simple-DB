@@ -65,16 +65,18 @@ public class Worker {
 
                 if (query != null) {
                 	try {
-                        // some code goes here
+                		System.out.println("+++++++++++++++++++++++++++__________________________++===========");
                 		CollectProducer queryRoot = (CollectProducer) query;
                 		queryRoot.open();
+                		while (queryRoot.hasNext()) {
+                			queryRoot.next();
+                		}
+                		queryRoot.close();
                 	} catch (DbException e1) {
                         e1.printStackTrace();
                     } catch (TransactionAbortedException e1) {
                         e1.printStackTrace();
-                    } //catch (InterruptedException e) {
-                        //e.printStackTrace();
-                    //}
+                    }
 
                 Worker.this.finishQuery();
                 }
