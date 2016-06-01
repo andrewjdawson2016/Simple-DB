@@ -223,11 +223,13 @@ public class WorkerTest extends ParallelTestBase {
                 TupleBag tb = null;
                 while ((tb = (TupleBag) q.poll()) != null) {
                     if (tb.isEos()) {
+			System.out.println("Got EOS");
                         seenEOS = true;
                         break getData;
                     }
                     Iterator<Tuple> it = tb.iterator();
                     while (it.hasNext()) {
+		
                         serverReceivedTuples.add(it.next().toString());
                     }
                 }
@@ -243,10 +245,11 @@ public class WorkerTest extends ParallelTestBase {
         }
 
         // EOS message should have been received
+	System.out.println("===============================================================================");
 	System.out.println("server recived tuples size: " + serverReceivedTuples.size());
-	for (String curr : serverReceivedTuples) {
-	    System.out.println("tuple: " + curr);
-	}
+	//for (String curr : serverReceivedTuples) {
+	//    System.out.println("tuple: " + curr);
+	//}
         Assert.assertTrue(seenEOS);
 
         // The server's received tuples should be the same as the output of the

@@ -26,7 +26,7 @@ public class TupleBag extends ExchangeMessage {
      * send them else keep accumulating, until at least MIN_SIZE of tuples are
      * accumulated
      * */
-    public static final int MAX_SIZE = 2048;
+    public static final int MAX_SIZE = 100;
 
     /**
      * The min number of tuples in a tuple bag.
@@ -36,7 +36,7 @@ public class TupleBag extends ExchangeMessage {
     /**
      * The max duration between two data transmissions Unit: milliseconds
      * */
-    public static final long MAX_MS = 500;
+    public static final long MAX_MS = 100;
 
     /**
      * The tuple data wrapped in the tuplebag.
