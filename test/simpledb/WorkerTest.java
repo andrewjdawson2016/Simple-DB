@@ -95,7 +95,7 @@ public class WorkerTest extends ParallelTestBase {
      // create a new test base
         ParallelTestBase newTestBase = new ParallelTestBase();
         newTestBase.init();
-        
+
         try {
             Database.getCatalog().loadSchema(
                     newTestBase.schemaFile.getAbsolutePath());
@@ -204,6 +204,7 @@ public class WorkerTest extends ParallelTestBase {
                     break;
             }
         } finally {
+            Thread.sleep(2000);
             worker.shutdown();
             System.out.println("Before unbind");
             ParallelUtility.unbind(pseudoServer);
@@ -227,7 +228,7 @@ public class WorkerTest extends ParallelTestBase {
                     }
                     Iterator<Tuple> it = tb.iterator();
                     while (it.hasNext()) {
-		
+
                         serverReceivedTuples.add(it.next().toString());
                     }
                 }
