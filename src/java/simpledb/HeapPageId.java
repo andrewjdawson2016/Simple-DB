@@ -1,8 +1,12 @@
 package simpledb;
 
-/** Unique identifier for HeapPage objects. */
-public class HeapPageId implements PageId {
+import java.io.Serializable;
 
+/** Unique identifier for HeapPage objects. */
+public class HeapPageId implements PageId, Serializable {
+
+        private static final long serialVersionUID = 1L;
+   
 	/**
 	 * The table that is being referenced
 	 */
