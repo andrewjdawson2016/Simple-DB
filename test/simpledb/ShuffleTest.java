@@ -65,7 +65,9 @@ public class ShuffleTest extends ParallelTestBase {
             } else {
                 TupleBag tb = ((TupleBag) message);
                 if (tb.isEos()) {
-                    eos.set(id);
+                    synchronized(eos) {
+                        eos.set(id);
+                    }
                 } else {
                     Iterator<Tuple> tuples = tb.iterator();
                     while (tuples.hasNext()) {

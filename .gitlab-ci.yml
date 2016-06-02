@@ -7,6 +7,7 @@ before_script:
   - rm apache-ant-${ANT_VERSION}-bin.tar.gz
   - export ANT_HOME=${PWD}/apache-ant-${ANT_VERSION}
   - export PATH=${PATH}:${ANT_HOME}/bin
+  - rm etc/sample-0.1.tar.bz2
 
 build:
   script: ant compile dist

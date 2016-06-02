@@ -223,6 +223,7 @@ public class WorkerTest extends ParallelTestBase {
                 TupleBag tb = null;
                 while ((tb = (TupleBag) q.poll()) != null) {
                     if (tb.isEos()) {
+			System.out.println("Got EOS");
                         seenEOS = true;
                         break getData;
                     }
@@ -244,6 +245,11 @@ public class WorkerTest extends ParallelTestBase {
         }
 
         // EOS message should have been received
+	System.out.println("===============================================================================");
+	System.out.println("server recived tuples size: " + serverReceivedTuples.size());
+	//for (String curr : serverReceivedTuples) {
+	//    System.out.println("tuple: " + curr);
+	//}
         Assert.assertTrue(seenEOS);
 
         // The server's received tuples should be the same as the output of the

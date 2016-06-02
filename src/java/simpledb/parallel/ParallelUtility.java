@@ -97,17 +97,17 @@ public class ParallelUtility {
 
     /**
      * Create a session for network communication.
-     * @return 
+     * @return
      *     An IoSession is a logical connection between a server
      *     and a client in Apache Mina. A set of sessions may share
      *     the same underlying TCP/UDP connection.
-     * 
+     *
      * @param remoteAddress
      *     The address of the remote server
-     *     
+     *
      * @param ioHandler
      *     The handler which processes received messages from the returned session
-     * 
+     *
      * @param connectionTimeoutMS
      *     The timeout of connecting the server in milliseconds.
      * */
@@ -145,7 +145,7 @@ public class ParallelUtility {
         config.setTcpNoDelay(true);
         /**
          * A session without any write/read actions in 5 seconds is assumed
-         * to be idle 
+         * to be idle
          * */
         config.setIdleTime(IdleStatus.BOTH_IDLE, 5);
         config.setReceiveBufferSize(2048);
@@ -238,6 +238,8 @@ public class ParallelUtility {
     }
 
     public static void deleteFileFolder(File f) throws IOException {
+        System.gc();
+
         if (!f.exists())
             return;
         if (f.isDirectory()) {
