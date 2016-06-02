@@ -37,6 +37,11 @@ public class SeqScan implements DbIterator {
     private String tableName;
     
     /**
+     * the tupleDesc of the table
+     */
+    private TupleDesc tupleDesc;
+    
+    /**
      * Creates a sequential scan over the specified table as a part of the
      * specified transaction.
      *
@@ -59,6 +64,7 @@ public class SeqScan implements DbIterator {
     	this.tableAlias = tableAlias;
     	this.dbFileItr = Database.getCatalog().getDatabaseFile(tableid).iterator(tid);
     	this.tableName = Database.getCatalog().getTableName(tableid);
+    	this.tupleDesc = Database.getCatalog().getTupleDesc(tableid);
     }
 
     /**
@@ -93,8 +99,8 @@ public class SeqScan implements DbIterator {
     public void reset(int tableid, String tableAlias) {
         this.tableid = tableid;
         this.tableAlias = tableAlias;
-        this.dbFileItr = Database.getCatalog().getDatabaseFile(this.tableid).iterator(this.tid);
-        
+        this.dbFileItr = Database.getCatalog().getDatabaseFile(tableid).iterator(this.tid);
+        this.tupleDesc = Database.getCatalog().getTupleDesc(tableid);
     }
 
     public SeqScan(TransactionId tid, int tableid) {
@@ -117,8 +123,10 @@ public class SeqScan implements DbIterator {
      *         prefixed with the tableAlias string from the constructor.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        TupleDesc td = Database.getCatalog().getTupleDesc(this.tableid);
+        if (this.tableAlias.equals("")) {
+        	return this.tupleDesc;
+        }
+        TupleDesc td = this.tupleDesc;
         Type[] typeAr = new Type[td.numFields()];
         String[] fieldAr = new String[td.numFields()];
         for (int i = 0; i < td.numFields(); i++) {
