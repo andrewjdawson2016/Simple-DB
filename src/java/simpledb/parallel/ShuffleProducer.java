@@ -79,6 +79,7 @@ public class ShuffleProducer extends Producer {
                     Tuple tup = ShuffleProducer.this.child.next();
                     int parition = pf.partition(tup, ShuffleProducer.this.child.getTupleDesc());
                     List<Tuple> buffer = buffers.get(parition);
+                    buffer.add(tup);
                     IoSession session = sessions.get(parition);
                     int cnt = buffer.size();
                     if (cnt >= TupleBag.MAX_SIZE) {
