@@ -113,6 +113,18 @@ public class IntegerAggregator implements Aggregator {
 			return new IntPair(min, 0);
 		case SUM:
 			return new IntPair(currIntPair.first + currTupleAggValue, 0);
+		case SUM_COUNT:
+			return new IntPair(currIntPair.first + currTupleAggValue, currIntPair.second + 1);
+		case SC_AVG:
+			if (this.gbfield == NO_GROUPING) {
+				int sum = ((IntField) tup.getField(0)).getValue();
+				int count = ((IntField) tup.getField(1)).getValue();
+				return new IntPair(sum + currIntPair.first, count + currIntPair.second);
+			} else {
+				int sum = ((IntField) tup.getField(1)).getValue();
+				int count = ((IntField) tup.getField(2)).getValue();
+				return new IntPair(sum + currIntPair.first, count + currIntPair.second);
+			}
 		default:
 			return null;
     	}
@@ -131,6 +143,18 @@ public class IntegerAggregator implements Aggregator {
 			return new IntPair(currTupleAggValue, 0);
 		case SUM:
 			return new IntPair(currTupleAggValue, 0);
+		case SUM_COUNT:
+			return new IntPair(currTupleAggValue, 1);
+		case SC_AVG:
+			if (this.gbfield == NO_GROUPING) {
+				int sum = ((IntField) tup.getField(0)).getValue();
+				int count = ((IntField) tup.getField(1)).getValue();
+				return new IntPair(sum, count);
+			} else {
+				int sum = ((IntField) tup.getField(1)).getValue();
+				int count = ((IntField) tup.getField(2)).getValue();
+				return new IntPair(sum, count);
+			}
 		default:
 			return null;
     	}
@@ -149,42 +173,77 @@ public class IntegerAggregator implements Aggregator {
     		if (this.aggregatorNoGroups == null) {
     			return new TupleIterator(null, new HashSet<Tuple>());
     		}
-    		Type[] tdTypes = { Type.INT_TYPE };
-    		String[] names = { this.aggColName };
-    		TupleDesc td = new TupleDesc(tdTypes, names);
-    		Tuple aggTuple = getNoGroupTuple(this.aggregatorNoGroups, td);
-    		Set<Tuple> iterableTuples = new HashSet<Tuple>();
-    		iterableTuples.add(aggTuple);
-    		return new TupleIterator(td, iterableTuples);
+
+    		if (this.what == Op.SUM_COUNT) {
+    			Type[] tdTypes = { Type.INT_TYPE, Type.INT_TYPE };
+    			String[] names = { "sum", "count" };
+        		TupleDesc td = new TupleDesc(tdTypes, names);
+        		Tuple aggTuple = getNoGroupTuple(this.aggregatorNoGroups, td);
+        		Set<Tuple> iterableTuples = new HashSet<Tuple>();
+        		iterableTuples.add(aggTuple);
+        		return new TupleIterator(td, iterableTuples);
+    		} else {
+    			Type[] tdTypes = { Type.INT_TYPE };
+    			String[] names = { this.aggColName };
+        		TupleDesc td = new TupleDesc(tdTypes, names);
+        		Tuple aggTuple = getNoGroupTuple(this.aggregatorNoGroups, td);
+        		Set<Tuple> iterableTuples = new HashSet<Tuple>();
+        		iterableTuples.add(aggTuple);
+        		return new TupleIterator(td, iterableTuples);
+    		}
     	} else {
     		if (this.aggregatorGroups.isEmpty()) {
     			return new TupleIterator(null, new HashSet<Tuple>());
     		}
-    		Type[] tdTypes = { this.gbfieldtype, Type.INT_TYPE };
-    		String[] names = { this.gbColName, this.aggColName };
-    		TupleDesc td = new TupleDesc(tdTypes, names);
-    		Set<Tuple> iterableTuples = new HashSet<Tuple>();
-    		for (Field group : this.aggregatorGroups.keySet()) {
-    			IntPair groupIntPair = this.aggregatorGroups.get(group);
-    			Tuple aggTuple = getGroupsTuple(groupIntPair, td, group);
-    			iterableTuples.add(aggTuple);
+    		if (this.what == Op.SUM_COUNT) {
+        		Type[] tdTypes = { this.gbfieldtype, Type.INT_TYPE, Type.INT_TYPE };
+        		String[] names = { this.gbColName, "sum", "count" };
+        		TupleDesc td = new TupleDesc(tdTypes, names);
+        		Set<Tuple> iterableTuples = new HashSet<Tuple>();
+        		for (Field group : this.aggregatorGroups.keySet()) {
+        			IntPair groupIntPair = this.aggregatorGroups.get(group);
+        			Tuple aggTuple = getGroupsTuple(groupIntPair, td, group);
+        			iterableTuples.add(aggTuple);
+        		}
+        		return new TupleIterator(td, iterableTuples);
+    		} else {
+        		Type[] tdTypes = { this.gbfieldtype, Type.INT_TYPE };
+        		String[] names = { this.gbColName, this.aggColName };
+        		TupleDesc td = new TupleDesc(tdTypes, names);
+        		Set<Tuple> iterableTuples = new HashSet<Tuple>();
+        		for (Field group : this.aggregatorGroups.keySet()) {
+        			IntPair groupIntPair = this.aggregatorGroups.get(group);
+        			Tuple aggTuple = getGroupsTuple(groupIntPair, td, group);
+        			iterableTuples.add(aggTuple);
+        		}
+        		return new TupleIterator(td, iterableTuples);
     		}
-    		return new TupleIterator(td, iterableTuples);
     	}
     }
     
     private Tuple getNoGroupTuple(IntPair ip, TupleDesc td) {
 		Tuple aggTuple = new Tuple(td);
-		IntField aggField = new IntField(getAggValue(ip));
-		aggTuple.setField(0, aggField);
+		if (this.what != Op.SUM_COUNT) {
+			IntField aggField = new IntField(getAggValue(ip));
+			aggTuple.setField(0, aggField);
+		} else {
+			aggTuple.setField(0, new IntField(ip.first));
+			aggTuple.setField(1, new IntField(ip.second));
+		}
+
 		return aggTuple;
     }
     
     private Tuple getGroupsTuple(IntPair ip, TupleDesc td, Field group) {
 		Tuple aggTuple = new Tuple(td);
 		aggTuple.setField(0, group);
-		IntField aggField = new IntField(getAggValue(ip));
-		aggTuple.setField(1, aggField);
+		if (this.what != Op.SUM_COUNT) {
+			IntField aggField = new IntField(getAggValue(ip));
+			aggTuple.setField(1, aggField);
+		} else {
+			aggTuple.setField(1, new IntField(ip.first));
+			aggTuple.setField(2, new IntField(ip.second));
+		}
 		return aggTuple;
     }
     
@@ -192,6 +251,8 @@ public class IntegerAggregator implements Aggregator {
     	switch(this.what) {
 		case AVG:
 			return (ip.first / ip.second);
+		case SC_AVG:
+			return (ip.first / ip.second); 
 		default:
 			return ip.first;
     	}
