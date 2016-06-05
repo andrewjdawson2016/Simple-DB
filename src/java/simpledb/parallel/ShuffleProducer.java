@@ -1,6 +1,9 @@
 package simpledb.parallel;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.mina.core.future.IoFutureListener;
 import org.apache.mina.core.future.WriteFuture;
@@ -58,61 +61,74 @@ public class ShuffleProducer extends Producer {
 
     class WorkingThread extends Thread {
         public void run() {
+        	Map<Integer, List<Tuple>> buffers = new HashMap<Integer, List<Tuple>>();
+        	List<IoSession> sessions = new ArrayList<IoSession>();
+        	
+        	for (int i = 0; i < workers.length; i++) {
+               sessions.add(ParallelUtility.createSession(
+                        ShuffleProducer.this.workers[i].getAddress(),
+                        ShuffleProducer.this.getThisWorker().minaHandler, -1));
+               buffers.put(i, new ArrayList<Tuple>());
+        	}
+                
 
-        	for (SocketInfo si : ShuffleProducer.this.workers) {
-        		
-        		IoSession session = ParallelUtility.createSession(si.getAddress(), ShuffleProducer.this.getThisWorker().minaHandler, -1);
+            try {
+                long lastTime = System.currentTimeMillis();
 
-                try {
-                    ArrayList<Tuple> buffer = new ArrayList<Tuple>();
-                    long lastTime = System.currentTimeMillis();
-
-                    while (ShuffleProducer.this.child.hasNext()) {
-                        Tuple tup = ShuffleProducer.this.child.next();
-                        buffer.add(tup);
-                        int cnt = buffer.size();
-                        if (cnt >= TupleBag.MAX_SIZE) {
+                while (ShuffleProducer.this.child.hasNext()) {
+                    Tuple tup = ShuffleProducer.this.child.next();
+                    int parition = pf.partition(tup, ShuffleProducer.this.child.getTupleDesc());
+                    List<Tuple> buffer = buffers.get(parition);
+                    IoSession session = sessions.get(parition);
+                    int cnt = buffer.size();
+                    if (cnt >= TupleBag.MAX_SIZE) {
+                        session.write(new TupleBag(
+                        		ShuffleProducer.this.operatorID,
+                        		ShuffleProducer.this.getThisWorker().workerID,
+                                buffer.toArray(new Tuple[] {}),
+                                ShuffleProducer.this.getTupleDesc()));
+                        buffer.clear();
+                        lastTime = System.currentTimeMillis();
+                    }
+                    if (cnt >= TupleBag.MIN_SIZE) {
+                        long thisTime = System.currentTimeMillis();
+                        if (thisTime - lastTime > TupleBag.MAX_MS) {
                             session.write(new TupleBag(
                             		ShuffleProducer.this.operatorID,
                             		ShuffleProducer.this.getThisWorker().workerID,
                                     buffer.toArray(new Tuple[] {}),
                                     ShuffleProducer.this.getTupleDesc()));
                             buffer.clear();
-                            lastTime = System.currentTimeMillis();
-                        }
-                        if (cnt >= TupleBag.MIN_SIZE) {
-                            long thisTime = System.currentTimeMillis();
-                            if (thisTime - lastTime > TupleBag.MAX_MS) {
-                                session.write(new TupleBag(
-                                		ShuffleProducer.this.operatorID,
-                                		ShuffleProducer.this.getThisWorker().workerID,
-                                        buffer.toArray(new Tuple[] {}),
-                                        ShuffleProducer.this.getTupleDesc()));
-                                buffer.clear();
-                                lastTime = thisTime;
-                            }
+                            lastTime = thisTime;
                         }
                     }
-                    if (buffer.size() > 0)
-                        session.write(new TupleBag(ShuffleProducer.this.operatorID,
-                        		ShuffleProducer.this.getThisWorker().workerID,
-                                buffer.toArray(new Tuple[] {}),
-                                ShuffleProducer.this.getTupleDesc()));
-                    session.write(new TupleBag(ShuffleProducer.this.operatorID,
-                    		ShuffleProducer.this.getThisWorker().workerID)).addListener(new IoFutureListener<WriteFuture>(){
-
-                                @Override
-                                public void operationComplete(WriteFuture future) {
-                                    ParallelUtility.closeSession(future.getSession());
-                                }});//.awaitUninterruptibly(); //wait until all the data have successfully transfered
-                } catch (DbException e) {
-                    e.printStackTrace();
-                } catch (TransactionAbortedException e) {
-                    e.printStackTrace();
                 }
-        	}
-            
-        }
+                
+                for (int parition : buffers.keySet()) {
+                	List<Tuple> buffer = buffers.get(parition);
+                	IoSession session = sessions.get(parition);
+	                if (buffer.size() > 0) {
+	                    session.write(new TupleBag(ShuffleProducer.this.operatorID,
+	                    		ShuffleProducer.this.getThisWorker().workerID,
+	                            buffer.toArray(new Tuple[] {}),
+	                            ShuffleProducer.this.getTupleDesc()));
+	                    buffer.clear();
+	                }
+	                session.write(new TupleBag(ShuffleProducer.this.operatorID,
+	                		ShuffleProducer.this.getThisWorker().workerID)).addListener(new IoFutureListener<WriteFuture>(){
+	
+	                            @Override
+	                            public void operationComplete(WriteFuture future) {
+	                                ParallelUtility.closeSession(future.getSession());
+	                            }});
+                }
+                
+            } catch (DbException e) {
+                e.printStackTrace();
+            } catch (TransactionAbortedException e) {
+                e.printStackTrace();
+            }
+    	}
     }
 
     @Override
