@@ -46,7 +46,6 @@ public class ShuffleConsumer extends Consumer {
             ParallelOperatorID operatorID, SocketInfo[] workers) {
         super(operatorID);
         this.child = child;
-        this.td = child.getTupleDesc();
         this.sourceWorkers = workers;
         this.workerIdToIndex = new HashMap<String, Integer>();
         int idx = 0;
