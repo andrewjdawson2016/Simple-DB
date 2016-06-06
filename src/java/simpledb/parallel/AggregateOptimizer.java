@@ -88,6 +88,14 @@ public class AggregateOptimizer extends ParallelQueryPlanOptimizer {
              * replace SUM with SUM -> SUM
              * */
             case SUM:
+                downAgg.setChildren(new DbIterator[] { downChildProcessed });
+                shuffleProducerOrCollectProducer
+                        .setChildren(new DbIterator[] { downAgg });
+                upAgg = new Aggregate(shuffleConsumerOrCollectConsumer,
+                        hasGroup ? 1 : 0,
+                        hasGroup ? 0 : Aggregator.NO_GROUPING,
+                        Aggregator.Op.SUM);
+                break;
                 /**
                  * replace COUNT with COUNT -> SUM
                  * */

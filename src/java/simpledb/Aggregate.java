@@ -19,6 +19,7 @@ public class Aggregate extends Operator {
     private Aggregator.Op aop;
     private Aggregator aggregator;
     private DbIterator itr;
+    private TupleDesc td;
     
     /**
      * Constructor.
@@ -43,6 +44,54 @@ public class Aggregate extends Operator {
     	this.afield = afield;
     	this.gfield = gfield;
     	this.aop = aop;
+    	this.td = computeTupleDesc();
+    }
+    
+    private TupleDesc computeTupleDesc() {
+    	if (this.gfield == -1) {
+    		if (this.aop == Op.SUM_COUNT) {
+	    		Type[] types = { 
+	    							this.child.getTupleDesc().getFieldType(this.afield), 
+	    							this.child.getTupleDesc().getFieldType(this.afield)
+    							};
+	    		
+	    		String[] names = { "sum", "count" };
+	    		return new TupleDesc(types, names);
+    		} else {
+	    		Type[] types = { this.child.getTupleDesc().getFieldType(this.afield) };
+	    		String[] names = { this.child.getTupleDesc().getFieldName(this.afield) };
+	    		TupleDesc result = new TupleDesc(types, names);
+	    		return result;
+    		}
+    	} else {
+    		if (this.aop == Op.SUM_COUNT) {
+        		Type[] types = {
+            			this.child.getTupleDesc().getFieldType(this.gfield),
+            			this.child.getTupleDesc().getFieldType(this.afield),
+            			this.child.getTupleDesc().getFieldType(this.afield)
+            		};
+            		
+            		String[] names = {
+            			this.child.getTupleDesc().getFieldName(this.gfield),
+            			"sum",
+            			"count"
+            		};
+            		
+            		return new TupleDesc(types, names);
+    		} else {
+	    		Type[] types = {
+	    			this.child.getTupleDesc().getFieldType(this.gfield),
+	    			this.child.getTupleDesc().getFieldType(this.afield)
+	    		};
+	    		
+	    		String[] names = {
+	    			this.child.getTupleDesc().getFieldName(this.gfield),
+	    			this.child.getTupleDesc().getFieldName(this.afield)
+	    		};
+	    		TupleDesc result = new TupleDesc(types, names);
+	    		return result;
+    		}
+    	}
     }
 
     /**
@@ -67,8 +116,9 @@ public class Aggregate extends Operator {
     	if (this.gfield == -1) {
     		return null;
     	} else {
-    		return this.child.getTupleDesc().getFieldName(this.gfield);
+    		return this.td.getFieldName(0);
     	}
+
     }
 
     /**
@@ -148,23 +198,7 @@ public class Aggregate extends Operator {
      * iterator.
      */
     public TupleDesc getTupleDesc() {
-    	if (this.gfield == -1) {
-    		Type[] types = { this.child.getTupleDesc().getFieldType(this.afield) };
-    		String[] names = { this.child.getTupleDesc().getFieldName(this.afield) };
-    		return new TupleDesc(types, names);
-    	} else {
-    		Type[] types = {
-    			this.child.getTupleDesc().getFieldType(this.gfield),
-    			this.child.getTupleDesc().getFieldType(this.afield)
-    		};
-    		
-    		String[] names = {
-    			this.child.getTupleDesc().getFieldName(this.gfield),
-    			this.child.getTupleDesc().getFieldName(this.afield)
-    		};
-    		
-    		return new TupleDesc(types, names);
-    	}
+    	return this.td;
     }
 
     public void close() {
