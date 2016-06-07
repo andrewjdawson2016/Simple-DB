@@ -126,8 +126,8 @@ public class ShuffleTest extends ParallelTestBase {
 
             sp.open();
 
-            // wait for 5 seconds.
-            long timeoutMS = 5 * 1000;
+            // wait for 60 seconds.
+            long timeoutMS = 60 * 1000;
             long current = System.currentTimeMillis();
             synchronized (mainThread) {
                 while (eos.nextClearBit(0) <= 1)
