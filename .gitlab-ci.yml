@@ -14,7 +14,4 @@ build:
 
 test:
   script:
-    - ant runtest -Dtest=ParallelAggregateTest
-    - ant runtest -Dtest=ShuffleTest
-    - ant runtest -Dtest=WorkerTest
-    - ant runtest -Dtest=systemtest.ParallelTest
+    - ant runtest -Dtest=ParallelAggregateTest && ant runtest -Dtest=ShuffleTest && ant runtest -Dtest=WorkerTest && ant runtest -Dtest=systemtest.ParallelTest
