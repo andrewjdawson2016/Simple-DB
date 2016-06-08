@@ -1,0 +1,7 @@
+select m.name,count(a.id)
+  from Movie m,Director d,Movie_Director md, Actor a,Casts c
+  where d.fname='Steven' and d.lname='Spielberg'
+    and d.id=md.did and md.mid=m.id
+    and c.mid=m.id
+    and c.pid=a.id
+    group by m.name;
