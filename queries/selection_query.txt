@@ -1,1 +1,0 @@
-select * from Actor where id < 1000;
