@@ -1,0 +1,5 @@
+select m.name,m.year,g.genre
+  from Movie m,Director d,Genre g,Movie_Director md
+  where d.fname='Steven' and d.lname='Spielberg'
+    and d.id=md.did and md.mid=m.id
+    and g.mid=m.id;
